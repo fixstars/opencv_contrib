@@ -242,6 +242,34 @@ CV_EXPORTS_W Ptr<cuda::StereoConstantSpaceBP>
     createStereoConstantSpaceBP(int ndisp = 128, int iters = 8, int levels = 4, int nr_plane = 4, int msg_type = CV_32F);
 
 /////////////////////////////////////////
+// StereoSGM
+
+/** @brief Class computing stereo correspondence (disparity map) using the semi global matching algorithm. :
+
+@sa StereoSGM
+*/
+class CV_EXPORTS_W StereoSGM : public cv::StereoMatcher
+{
+public:
+    virtual void compute(InputArray left, InputArray right, OutputArray disparity, Stream& stream) = 0;
+
+    virtual int getP1() const = 0;
+    virtual void setP1(int P1) = 0;
+
+    virtual int getP2() const = 0;
+    virtual void setP2(int P2) = 0;
+
+    virtual int getUniquenessRatio() const = 0;
+    virtual void setUniquenessRatio(int uniquenessRatio) = 0;
+};
+
+/** @brief Creates StereoSGM object.
+
+@param numDisparities TODO
+*/
+CV_EXPORTS_W Ptr<cuda::StereoSGM> createStereoSGM(int numDisparities = 128, int P1 = 10, int P2 = 120, int uniquenessRatio = 5);
+
+/////////////////////////////////////////
 // DisparityBilateralFilter
 
 /** @brief Class refining a disparity map using joint bilateral filtering. :
