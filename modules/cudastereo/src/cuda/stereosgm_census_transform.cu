@@ -14,12 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include <cstdio>
-#include "census_transform.hpp"
+#if !defined CUDA_DISABLER
 
-namespace sgm {
+#include "stereosgm_census_transform.hpp"
+#include "opencv2/core/cuda_stream_accessor.hpp"
+#include <cstdint>
 
-namespace {
+namespace cv { namespace cuda { namespace device
+{
+namespace stereosgm
+{
 
 static constexpr int WINDOW_WIDTH  = 9;
 static constexpr int WINDOW_HEIGHT = 7;
@@ -29,11 +33,8 @@ static constexpr int LINES_PER_BLOCK = 16;
 
 template <typename T>
 __global__ void census_transform_kernel(
-	feature_type *dest,
-	const T *src,
-	int width,
-	int height,
-	int pitch)
+	PtrStepSz<T> src,
+	PtrStepSz<uint32_t> dest)
 {
 	using pixel_type = T;
 	static const int SMEM_BUFFER_SIZE = WINDOW_HEIGHT + 1;
@@ -50,8 +51,8 @@ __global__ void census_transform_kernel(
 	for(int i = 0; i < WINDOW_HEIGHT; ++i){
 		const int x = x0 + tid, y = y0 - half_kh + i;
 		pixel_type value = 0;
-		if(0 <= x && x < width && 0 <= y && y < height){
-			value = src[x + y * pitch];
+		if(0 <= x && x < src.cols && 0 <= y && y < src.rows){
+			value = src(y, x);
 		}
 		smem_lines[i][tid] = value;
 	}
@@ -63,8 +64,8 @@ __global__ void census_transform_kernel(
 			// Load to smem
 			const int x = x0 + tid, y = y0 + half_kh + i + 1;
 			pixel_type value = 0;
-			if(0 <= x && x < width && 0 <= y && y < height){
-				value = src[x + y * pitch];
+			if(0 <= x && x < src.cols && 0 <= y && y < src.rows){
+				value = src(y, x);
 			}
 			const int smem_x = tid;
 			const int smem_y = (WINDOW_HEIGHT + i) % SMEM_BUFFER_SIZE;
@@ -74,10 +75,10 @@ __global__ void census_transform_kernel(
 		if(half_kw <= tid && tid < BLOCK_SIZE - half_kw){
 			// Compute and store
 			const int x = x0 + tid, y = y0 + i;
-			if(half_kw <= x && x < width - half_kw && half_kh <= y && y < height - half_kh){
+			if(half_kw <= x && x < src.cols - half_kw && half_kh <= y && y < src.rows - half_kh){
 				const int smem_x = tid;
 				const int smem_y = (half_kh + i) % SMEM_BUFFER_SIZE;
-				feature_type f = 0;
+				uint32_t f = 0;
 				for(int dy = -half_kh; dy < 0; ++dy){
 					const int smem_y1 = (smem_y + dy + SMEM_BUFFER_SIZE) % SMEM_BUFFER_SIZE;
 					const int smem_y2 = (smem_y - dy + SMEM_BUFFER_SIZE) % SMEM_BUFFER_SIZE;
@@ -96,55 +97,27 @@ __global__ void census_transform_kernel(
 					const auto b = smem_lines[smem_y][smem_x2];
 					f = (f << 1) | (a > b);
 				}
-				dest[x + y * width] = f;
+				dest(y, x) = f;
 			}
 		}
 		__syncthreads();
 	}
 }
 
-template <typename T>
-void enqueue_census_transform(
-	feature_type *dest,
-	const T *src,
-	int width,
-	int height,
-	int pitch,
-	cudaStream_t stream)
-{
-	const int width_per_block = BLOCK_SIZE - WINDOW_WIDTH + 1;
-	const int height_per_block = LINES_PER_BLOCK;
-	const dim3 gdim(
-		(width  + width_per_block  - 1) / width_per_block,
-		(height + height_per_block - 1) / height_per_block);
-	const dim3 bdim(BLOCK_SIZE);
-	census_transform_kernel<<<gdim, bdim, 0, stream>>>(dest, src, width, height, pitch);
-}
+        void censusTransform(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dest, cv::cuda::Stream& _stream)
+        {
+            CV_Assert(src.size() == dest.size());
+            CV_Assert(src.type() == CV_8UC1);
+            const int width_per_block = BLOCK_SIZE - WINDOW_WIDTH + 1;
+            const int height_per_block = LINES_PER_BLOCK;
+            const dim3 gdim(
+                (src.cols  + width_per_block  - 1) / width_per_block,
+                (src.rows + height_per_block - 1) / height_per_block);
+            const dim3 bdim(BLOCK_SIZE);
+            cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
+            census_transform_kernel<uint32_t><<<gdim, bdim, 0, stream>>>(src, dest);
+        }
+    }
+}}}
 
-}
-
-
-template <typename T>
-CensusTransform<T>::CensusTransform()
-	: m_feature_buffer()
-{ }
-
-template <typename T>
-void CensusTransform<T>::enqueue(
-	const input_type *src,
-	int width,
-	int height,
-	int pitch,
-	cudaStream_t stream)
-{
-	if(m_feature_buffer.size() != static_cast<size_t>(width * height)){
-		m_feature_buffer = DeviceBuffer<feature_type>(width * height);
-	}
-	enqueue_census_transform(
-		m_feature_buffer.data(), src, width, height, pitch, stream);
-}
-
-template class CensusTransform<uint8_t>;
-template class CensusTransform<uint16_t>;
-
-}
+#endif /* CUDA_DISABLER */
