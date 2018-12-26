@@ -17,51 +17,15 @@ limitations under the License.
 #ifndef SGM_WINNER_TAKES_ALL_HPP
 #define SGM_WINNER_TAKES_ALL_HPP
 
-#include "device_buffer.hpp"
-#include "types.hpp"
+#include "opencv2/core/cuda.hpp"
 
-namespace sgm {
-
-template <size_t MAX_DISPARITY>
-class WinnerTakesAll {
-
-private:
-	DeviceBuffer<output_type> m_left_buffer;
-	DeviceBuffer<output_type> m_right_buffer;
-
-public:
-	WinnerTakesAll();
-
-	const output_type *get_left_output() const {
-		return m_left_buffer.data();
-	}
-
-	const output_type *get_right_output() const {
-		return m_right_buffer.data();
-	}
-
-	void enqueue(
-		const cost_type *src,
-		int width,
-		int height,
-		int pitch,
-		float uniqueness,
-		bool subpixel,
-		cudaStream_t stream);
-
-	void enqueue(
-		output_type *left,
-		output_type *right,
-		const cost_type *src,
-		int width,
-		int height,
-		int pitch,
-		float uniqueness,
-		bool subpixel,
-		cudaStream_t stream);
-
-};
-
-}
+namespace cv { namespace cuda { namespace device
+{
+    namespace stereosgm
+    {
+        template <size_t MAX_DISPARITY>
+        void winnerTakesAll(const GpuMat& src, GpuMat& left, GpuMat& right, cv::cuda::Stream& stream);
+    }
+}}}
 
 #endif

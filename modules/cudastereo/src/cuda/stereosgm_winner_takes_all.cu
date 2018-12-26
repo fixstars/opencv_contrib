@@ -15,24 +15,196 @@ limitations under the License.
 */
 
 #include <cstdio>
-#include <libsgm.h>
-#include "winner_takes_all.hpp"
-#include "utility.hpp"
+#include <cuda.h>
+#include <device_functions.h>
+#include "stereosgm_winner_takes_all.hpp"
+#include "opencv2/core/cuda_stream_accessor.hpp"
 
-namespace sgm {
-
+namespace cv { namespace cuda { namespace device
+{
+    namespace stereosgm
+    {
 namespace {
+template <typename T, typename S>
+__device__ inline T load_as(const S *p){
+	return *reinterpret_cast<const T *>(p);
+}
+
+template <typename T, typename S>
+__device__ inline void store_as(S *p, const T& x){
+	*reinterpret_cast<T *>(p) = x;
+}
+
+template <typename T>
+__device__ inline uint32_t pack_uint8x4(T x, T y, T z, T w){
+	uchar4 uint8x4;
+	uint8x4.x = static_cast<uint8_t>(x);
+	uint8x4.y = static_cast<uint8_t>(y);
+	uint8x4.z = static_cast<uint8_t>(z);
+	uint8x4.w = static_cast<uint8_t>(w);
+	return load_as<uint32_t>(&uint8x4);
+}
+
+template <unsigned int N>
+__device__ inline void load_uint8_vector(uint32_t *dest, const uint8_t *ptr);
+
+template <>
+__device__ inline void load_uint8_vector<1u>(uint32_t *dest, const uint8_t *ptr){
+	dest[0] = static_cast<uint32_t>(ptr[0]);
+}
+
+template <>
+__device__ inline void load_uint8_vector<2u>(uint32_t *dest, const uint8_t *ptr){
+	const auto uint8x2 = load_as<uchar2>(ptr);
+	dest[0] = uint8x2.x; dest[1] = uint8x2.y;
+}
+
+template <>
+__device__ inline void load_uint8_vector<4u>(uint32_t *dest, const uint8_t *ptr){
+	const auto uint8x4 = load_as<uchar4>(ptr);
+	dest[0] = uint8x4.x; dest[1] = uint8x4.y; dest[2] = uint8x4.z; dest[3] = uint8x4.w;
+}
+
+template <>
+__device__ inline void load_uint8_vector<8u>(uint32_t *dest, const uint8_t *ptr){
+	const auto uint32x2 = load_as<uint2>(ptr);
+	load_uint8_vector<4u>(dest + 0, reinterpret_cast<const uint8_t *>(&uint32x2.x));
+	load_uint8_vector<4u>(dest + 4, reinterpret_cast<const uint8_t *>(&uint32x2.y));
+}
+
+template <>
+__device__ inline void load_uint8_vector<16u>(uint32_t *dest, const uint8_t *ptr){
+	const auto uint32x4 = load_as<uint4>(ptr);
+	load_uint8_vector<4u>(dest +  0, reinterpret_cast<const uint8_t *>(&uint32x4.x));
+	load_uint8_vector<4u>(dest +  4, reinterpret_cast<const uint8_t *>(&uint32x4.y));
+	load_uint8_vector<4u>(dest +  8, reinterpret_cast<const uint8_t *>(&uint32x4.z));
+	load_uint8_vector<4u>(dest + 12, reinterpret_cast<const uint8_t *>(&uint32x4.w));
+}
+
+
+template <unsigned int N>
+__device__ inline void store_uint8_vector(uint8_t *dest, const uint32_t *ptr);
+
+template <>
+__device__ inline void store_uint8_vector<1u>(uint8_t *dest, const uint32_t *ptr){
+	dest[0] = static_cast<uint8_t>(ptr[0]);
+}
+
+template <>
+__device__ inline void store_uint8_vector<2u>(uint8_t *dest, const uint32_t *ptr){
+	uchar2 uint8x2;
+	uint8x2.x = static_cast<uint8_t>(ptr[0]);
+	uint8x2.y = static_cast<uint8_t>(ptr[0]);
+	store_as<uchar2>(dest, uint8x2);
+}
+
+template <>
+__device__ inline void store_uint8_vector<4u>(uint8_t *dest, const uint32_t *ptr){
+	store_as<uint32_t>(dest, pack_uint8x4(ptr[0], ptr[1], ptr[2], ptr[3]));
+}
+
+template <>
+__device__ inline void store_uint8_vector<8u>(uint8_t *dest, const uint32_t *ptr){
+	uint2 uint32x2;
+	uint32x2.x = pack_uint8x4(ptr[0], ptr[1], ptr[2], ptr[3]);
+	uint32x2.y = pack_uint8x4(ptr[4], ptr[5], ptr[6], ptr[7]);
+	store_as<uint2>(dest, uint32x2);
+}
+
+template <>
+__device__ inline void store_uint8_vector<16u>(uint8_t *dest, const uint32_t *ptr){
+	uint4 uint32x4;
+	uint32x4.x = pack_uint8x4(ptr[ 0], ptr[ 1], ptr[ 2], ptr[ 3]);
+	uint32x4.y = pack_uint8x4(ptr[ 4], ptr[ 5], ptr[ 6], ptr[ 7]);
+	uint32x4.z = pack_uint8x4(ptr[ 8], ptr[ 9], ptr[10], ptr[11]);
+	uint32x4.w = pack_uint8x4(ptr[12], ptr[13], ptr[14], ptr[15]);
+	store_as<uint4>(dest, uint32x4);
+}
+
+
+template <unsigned int N>
+__device__ inline void load_uint16_vector(uint32_t *dest, const uint16_t *ptr);
+
+template <>
+__device__ inline void load_uint16_vector<1u>(uint32_t *dest, const uint16_t *ptr){
+	dest[0] = static_cast<uint32_t>(ptr[0]);
+}
+
+template <>
+__device__ inline void load_uint16_vector<2u>(uint32_t *dest, const uint16_t *ptr){
+	const auto uint16x2 = load_as<ushort2>(ptr);
+	dest[0] = uint16x2.x; dest[1] = uint16x2.y;
+}
+
+template <>
+__device__ inline void load_uint16_vector<4u>(uint32_t *dest, const uint16_t *ptr){
+	const auto uint16x4 = load_as<ushort4>(ptr);
+	dest[0] = uint16x4.x; dest[1] = uint16x4.y; dest[2] = uint16x4.z; dest[3] = uint16x4.w;
+}
+
+template <>
+__device__ inline void load_uint16_vector<8u>(uint32_t *dest, const uint16_t *ptr){
+	const auto uint32x4 = load_as<uint4>(ptr);
+	load_uint16_vector<2u>(dest + 0, reinterpret_cast<const uint16_t *>(&uint32x4.x));
+	load_uint16_vector<2u>(dest + 2, reinterpret_cast<const uint16_t *>(&uint32x4.y));
+	load_uint16_vector<2u>(dest + 4, reinterpret_cast<const uint16_t *>(&uint32x4.z));
+	load_uint16_vector<2u>(dest + 6, reinterpret_cast<const uint16_t *>(&uint32x4.w));
+}
+
+
+template <unsigned int N>
+__device__ inline void store_uint16_vector(uint16_t *dest, const uint32_t *ptr);
+
+template <>
+__device__ inline void store_uint16_vector<1u>(uint16_t *dest, const uint32_t *ptr){
+	dest[0] = static_cast<uint16_t>(ptr[0]);
+}
+
+template <>
+__device__ inline void store_uint16_vector<2u>(uint16_t *dest, const uint32_t *ptr){
+	ushort2 uint16x2;
+	uint16x2.x = static_cast<uint16_t>(ptr[0]);
+	uint16x2.y = static_cast<uint16_t>(ptr[1]);
+	store_as<ushort2>(dest, uint16x2);
+}
+
+template <>
+__device__ inline void store_uint16_vector<4u>(uint16_t *dest, const uint32_t *ptr){
+	ushort4 uint16x4;
+	uint16x4.x = static_cast<uint16_t>(ptr[0]);
+	uint16x4.y = static_cast<uint16_t>(ptr[1]);
+	uint16x4.z = static_cast<uint16_t>(ptr[2]);
+	uint16x4.w = static_cast<uint16_t>(ptr[3]);
+	store_as<ushort4>(dest, uint16x4);
+}
+
+template <>
+__device__ inline void store_uint16_vector<8u>(uint16_t *dest, const uint32_t *ptr){
+	uint4 uint32x4;
+	store_uint16_vector<2u>(reinterpret_cast<uint16_t *>(&uint32x4.x), &ptr[0]);
+	store_uint16_vector<2u>(reinterpret_cast<uint16_t *>(&uint32x4.y), &ptr[2]);
+	store_uint16_vector<2u>(reinterpret_cast<uint16_t *>(&uint32x4.z), &ptr[4]);
+	store_uint16_vector<2u>(reinterpret_cast<uint16_t *>(&uint32x4.w), &ptr[6]);
+	store_as<uint4>(dest, uint32x4);
+}
+
+template <>
+__device__ inline void store_uint16_vector<16u>(uint16_t *dest, const uint32_t *ptr){
+	store_uint16_vector<8u>(dest + 0, ptr + 0);
+	store_uint16_vector<8u>(dest + 8, ptr + 8);
+}
 
 static constexpr unsigned int NUM_PATHS = 8u;
 
+static constexpr unsigned int WARP_SIZE = 32u;
 static constexpr unsigned int WARPS_PER_BLOCK = 8u;
 static constexpr unsigned int BLOCK_SIZE = WARPS_PER_BLOCK * WARP_SIZE;
 
 
 __device__ inline void update_top2(uint32_t& v0, uint32_t& v1, uint32_t x){
-	const uint32_t y = max(x, v0);
-	v0 = min(x, v0);
-	v1 = min(y, v1);
+	const uint32_t y = umax(x, v0);
+	v0 = umin(x, v0);
+	v1 = umin(y, v1);
 }
 
 struct Top2 {
@@ -122,11 +294,11 @@ __device__ inline uint32_t compute_disparity_subpixel(Top2 t2, float uniqueness,
 	if(cost1 * uniqueness >= cost0
 		|| abs(disp1 - disp0) <= 1){
 		int disp = disp0;
-		disp <<= sgm::StereoSGM::SUBPIXEL_SHIFT;
+		disp <<= DISP_SHIFT;
 		if (disp0 > 0 && disp0 < MAX_DISPARITY - 1) {
 			const int numer = smem[disp0 - 1] - smem[disp0 + 1];
 			const int denom = smem[disp0 - 1] - 2 * smem[disp0] + smem[disp0 + 1];
-			disp += ((numer << sgm::StereoSGM::SUBPIXEL_SHIFT) + denom) / (2 * denom);
+			disp += ((numer << DISP_SHIFT) + denom) / (2 * denom);
 		}
 		return disp;
 	}else{
@@ -137,12 +309,9 @@ __device__ inline uint32_t compute_disparity_subpixel(Top2 t2, float uniqueness,
 
 template <unsigned int MAX_DISPARITY, ComputeDisparity compute_disparity = compute_disparity_normal<MAX_DISPARITY>>
 __global__ void winner_takes_all_kernel(
-	output_type *left_dest,
-	output_type *right_dest,
-	const cost_type *src,
-	int width,
-	int height,
-	int pitch,
+	const PtrStepSz<uint8_t> _src,
+	PtrStep<uint16_t> _left_dest,
+	PtrStep<uint16_t> _right_dest,
 	float uniqueness)
 {
 	static const unsigned int ACCUMULATION_PER_THREAD = 16u;
@@ -153,16 +322,16 @@ __global__ void winner_takes_all_kernel(
 			? REDUCTION_PER_THREAD
 			: ACCUMULATION_INTERVAL;
 
-	const unsigned int cost_step = MAX_DISPARITY * width * height;
+	const unsigned int cost_step = MAX_DISPARITY * _src.cols * _src.rows;
 	const unsigned int warp_id = threadIdx.x / WARP_SIZE;
 	const unsigned int lane_id = threadIdx.x % WARP_SIZE;
 
 	const unsigned int y = blockIdx.x * WARPS_PER_BLOCK + warp_id;
-	src += y * MAX_DISPARITY * width;
-	left_dest  += y * pitch;
-	right_dest += y * pitch;
+	const uint8_t *src = _src.ptr(y * MAX_DISPARITY);
+	uint16_t *left_dest  = _left_dest.ptr(y);
+	uint16_t *right_dest  = _right_dest.ptr(y);
 
-	if(y >= height){
+	if(y >= _src.rows){
 		return;
 	}
 
@@ -173,7 +342,7 @@ __global__ void winner_takes_all_kernel(
 		right_top2[i].initialize();
 	}
 
-	for(unsigned int x0 = 0; x0 < width; x0 += UNROLL_DEPTH){
+	for(unsigned int x0 = 0; x0 < _src.cols; x0 += UNROLL_DEPTH){
 #pragma unroll
 		for(unsigned int x1 = 0; x1 < UNROLL_DEPTH; ++x1){
 			if(x1 % ACCUMULATION_INTERVAL == 0){
@@ -181,7 +350,7 @@ __global__ void winner_takes_all_kernel(
 				const unsigned int k_hi = k / MAX_DISPARITY;
 				const unsigned int k_lo = k % MAX_DISPARITY;
 				const unsigned int x = x0 + x1 + k_hi;
-				if(x < width){
+				if(x < _src.cols){
 					const unsigned int offset = x * MAX_DISPARITY + k_lo;
 					uint32_t sum[ACCUMULATION_PER_THREAD];
 					for(unsigned int i = 0; i < ACCUMULATION_PER_THREAD; ++i){
@@ -205,7 +374,7 @@ __global__ void winner_takes_all_kernel(
 #endif
 			}
 			const unsigned int x = x0 + x1;
-			if(x < width){
+			if(x < _src.cols){
 				// Load sum of costs
 				const unsigned int smem_x = x1 % ACCUMULATION_INTERVAL;
 				const unsigned int k0 = lane_id * REDUCTION_PER_THREAD;
@@ -257,100 +426,30 @@ __global__ void winner_takes_all_kernel(
 	}
 	for(unsigned int i = 0; i < REDUCTION_PER_THREAD; ++i){
 		const unsigned int k = lane_id * REDUCTION_PER_THREAD + i;
-		const int p = static_cast<int>(((width - k) & ~(MAX_DISPARITY - 1)) + k);
-		if(p < width){
+		const int p = static_cast<int>(((_src.cols - k) & ~(MAX_DISPARITY - 1)) + k);
+		if(p < _src.cols){
 			right_dest[p] = compute_disparity_normal<MAX_DISPARITY>(right_top2[i], uniqueness);
 		}
 	}
 }
 
-template <size_t MAX_DISPARITY>
-void enqueue_winner_takes_all(
-	output_type *left_dest,
-	output_type *right_dest,
-	const cost_type *src,
-	int width,
-	int height,
-	int pitch,
-	float uniqueness,
-	bool subpixel,
-	cudaStream_t stream)
-{
-	const int gdim =
-		(height + WARPS_PER_BLOCK - 1) / WARPS_PER_BLOCK;
-	const int bdim = BLOCK_SIZE;
-	if (subpixel) {
-		winner_takes_all_kernel<MAX_DISPARITY, compute_disparity_subpixel<MAX_DISPARITY>><<<gdim, bdim, 0, stream>>>(
-			left_dest, right_dest, src, width, height, pitch, uniqueness);
-	} else {
-		winner_takes_all_kernel<MAX_DISPARITY, compute_disparity_normal<MAX_DISPARITY>><<<gdim, bdim, 0, stream>>>(
-			left_dest, right_dest, src, width, height, pitch, uniqueness);
-	}
+        template <size_t MAX_DISPARITY>
+        void winnerTakesAll(const GpuMat& src, GpuMat& left, GpuMat& right, cv::cuda::Stream& _stream)
+        {
+            CV_Assert(src.size() == left.size() && left.size() == right.size());
+            CV_Assert(src.type() == CV_16UC1);
+            const int gdim =
+                (src.rows + WARPS_PER_BLOCK - 1) / WARPS_PER_BLOCK;
+            const int bdim = BLOCK_SIZE;
+            cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
+            if (subpixel) {
+                winner_takes_all_kernel<MAX_DISPARITY, compute_disparity_subpixel<MAX_DISPARITY>><<<gdim, bdim, 0, stream>>>(
+                    src, left_dest, right_dest, uniqueness);
+            } else {
+                winner_takes_all_kernel<MAX_DISPARITY, compute_disparity_normal<MAX_DISPARITY>><<<gdim, bdim, 0, stream>>>(
+                    src, left_dest, right_dest, uniqueness);
+            }
+        }
+    }
 }
-
-}
-
-
-template <size_t MAX_DISPARITY>
-WinnerTakesAll<MAX_DISPARITY>::WinnerTakesAll()
-	: m_left_buffer()
-	, m_right_buffer()
-{ }
-
-template <size_t MAX_DISPARITY>
-void WinnerTakesAll<MAX_DISPARITY>::enqueue(
-	const cost_type *src,
-	int width,
-	int height,
-	int pitch,
-	float uniqueness,
-	bool subpixel,
-	cudaStream_t stream)
-{
-	if(m_left_buffer.size() != static_cast<size_t>(pitch * height)){
-		m_left_buffer = DeviceBuffer<output_type>(pitch * height);
-	}
-	if(m_right_buffer.size() != static_cast<size_t>(pitch * height)){
-		m_right_buffer = DeviceBuffer<output_type>(pitch * height);
-	}
-	enqueue_winner_takes_all<MAX_DISPARITY>(
-		m_left_buffer.data(),
-		m_right_buffer.data(),
-		src,
-		width,
-		height,
-		pitch,
-		uniqueness,
-		subpixel,
-		stream);
-}
-
-template <size_t MAX_DISPARITY>
-void WinnerTakesAll<MAX_DISPARITY>::enqueue(
-	output_type* left,
-	output_type* right,
-	const cost_type *src,
-	int width,
-	int height,
-	int pitch,
-	float uniqueness,
-	bool subpixel,
-	cudaStream_t stream)
-{
-	enqueue_winner_takes_all<MAX_DISPARITY>(
-		left,
-		right,
-		src,
-		width,
-		height,
-		pitch,
-		uniqueness,
-		subpixel,
-		stream);
-}
-
-
-template class WinnerTakesAll< 64>;
-template class WinnerTakesAll<128>;
-
-}
+}}}
