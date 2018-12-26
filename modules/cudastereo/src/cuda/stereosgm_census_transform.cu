@@ -24,7 +24,7 @@ namespace cv { namespace cuda { namespace device
 {
     namespace stereosgm
     {
-
+        namespace {
         static constexpr int WINDOW_WIDTH  = 9;
         static constexpr int WINDOW_HEIGHT = 7;
 
@@ -34,7 +34,7 @@ namespace cv { namespace cuda { namespace device
         template <typename T>
         __global__ void census_transform_kernel(
             PtrStepSz<T> src,
-            PtrStepSz<uint32_t> dest)
+            PtrStep<uint32_t> dest)
         {
             using pixel_type = T;
             static const int SMEM_BUFFER_SIZE = WINDOW_HEIGHT + 1;
@@ -102,6 +102,7 @@ namespace cv { namespace cuda { namespace device
                 }
                 __syncthreads();
             }
+        }
         }
 
         void censusTransform(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dest, cv::cuda::Stream& _stream)
