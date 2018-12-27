@@ -19,8 +19,10 @@ limitations under the License.
 #include "horizontal_path_aggregation.hpp"
 #include "oblique_path_aggregation.hpp"
 
-namespace sgm {
-
+namespace cv { namespace cuda { namespace device
+{
+    namespace path_aggregation
+    {
 template <size_t MAX_DISPARITY>
 PathAggregation<MAX_DISPARITY>::PathAggregation()
 	: m_cost_buffer()
@@ -91,3 +93,4 @@ template class PathAggregation< 64>;
 template class PathAggregation<128>;
 
 }
+}}}

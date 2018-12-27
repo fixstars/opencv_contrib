@@ -19,10 +19,12 @@ limitations under the License.
 
 #include <cstdint>
 #include <cuda.h>
-#include "utility.hpp"
+#include "stereosgm_utility.hpp"
 
-namespace sgm {
-namespace path_aggregation {
+namespace cv { namespace cuda { namespace device
+{
+    namespace path_aggregation
+    {
 
 template <
 	unsigned int DP_BLOCK_SIZE,
@@ -93,6 +95,6 @@ struct DynamicProgramming {
 };
 
 }
-}
+}}}
 
 #endif
