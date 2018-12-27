@@ -20,6 +20,7 @@ limitations under the License.
 #include "stereosgm_winner_takes_all.hpp"
 #include "stereosgm_utility.hpp"
 #include "opencv2/core/cuda_stream_accessor.hpp"
+#include "opencv2/calib3d.hpp"
 
 namespace cv { namespace cuda { namespace device
 {
@@ -126,11 +127,11 @@ namespace cv { namespace cuda { namespace device
                 if(cost1 * uniqueness >= cost0
                     || abs(disp1 - disp0) <= 1){
                     int disp = disp0;
-                    disp <<= DISP_SHIFT;
+                    disp <<= StereoMatcher::DISP_SHIFT;
                     if (disp0 > 0 && disp0 < MAX_DISPARITY - 1) {
                         const int numer = smem[disp0 - 1] - smem[disp0 + 1];
                         const int denom = smem[disp0 - 1] - 2 * smem[disp0] + smem[disp0 + 1];
-                        disp += ((numer << DISP_SHIFT) + denom) / (2 * denom);
+                        disp += ((numer << StereoMatcher::DISP_SHIFT) + denom) / (2 * denom);
                     }
                     return disp;
                 }else{
@@ -267,7 +268,7 @@ namespace cv { namespace cuda { namespace device
         }
 
         template <size_t MAX_DISPARITY>
-        void winnerTakesAll(const GpuMat& src, GpuMat& left, GpuMat& right, cv::cuda::Stream& _stream)
+        void winnerTakesAll(const GpuMat& src, GpuMat& left, GpuMat& right, float uniqueness, bool subpixel, cv::cuda::Stream& _stream)
         {
             CV_Assert(src.size() == left.size() && left.size() == right.size());
             CV_Assert(src.type() == CV_16UC1);
@@ -277,13 +278,13 @@ namespace cv { namespace cuda { namespace device
             cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
             if (subpixel) {
                 winner_takes_all_kernel<MAX_DISPARITY, compute_disparity_subpixel<MAX_DISPARITY>><<<gdim, bdim, 0, stream>>>(
-                    src, left_dest, right_dest, uniqueness);
+                    src, left, right, uniqueness);
             } else {
                 winner_takes_all_kernel<MAX_DISPARITY, compute_disparity_normal<MAX_DISPARITY>><<<gdim, bdim, 0, stream>>>(
-                    src, left_dest, right_dest, uniqueness);
+                    src, left, right, uniqueness);
             }
         }
-        template void winnerTakesAll< 64>(const GpuMat&, GpuMat&, GpuMat&, cv::cuda::Stream&);
-        template void winnerTakesAll<128>(const GpuMat&, GpuMat&, GpuMat&, cv::cuda::Stream&);
+        template void winnerTakesAll< 64>(const GpuMat&, GpuMat&, GpuMat&, float, bool, cv::cuda::Stream&);
+        template void winnerTakesAll<128>(const GpuMat&, GpuMat&, GpuMat&, float, bool, cv::cuda::Stream&);
     }
 }}}

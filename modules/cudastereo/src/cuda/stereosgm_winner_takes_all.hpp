@@ -24,7 +24,7 @@ namespace cv { namespace cuda { namespace device
     namespace stereosgm
     {
         template <size_t MAX_DISPARITY>
-        void winnerTakesAll(const GpuMat& src, GpuMat& left, GpuMat& right, cv::cuda::Stream& stream);
+        void winnerTakesAll(const GpuMat& src, GpuMat& left, GpuMat& right, float uniqueness, bool subpixel, cv::cuda::Stream& stream);
     }
 }}}
 
