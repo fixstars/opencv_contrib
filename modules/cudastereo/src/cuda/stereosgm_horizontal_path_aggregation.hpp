@@ -17,34 +17,32 @@ limitations under the License.
 #ifndef SGM_HORIZONTAL_PATH_AGGREGATION_HPP
 #define SGM_HORIZONTAL_PATH_AGGREGATION_HPP
 
-#include "types.hpp"
+#include "opencv2/core/cuda.hpp"
 
-namespace sgm {
-namespace path_aggregation {
-
-template <unsigned int MAX_DISPARITY>
-void enqueue_aggregate_left2right_path(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
-	unsigned int p1,
-	unsigned int p2,
-	cudaStream_t stream);
+namespace cv { namespace cuda { namespace device
+{
+    namespace stereosgm
+    {
 
 template <unsigned int MAX_DISPARITY>
-void enqueue_aggregate_right2left_path(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+void aggregateLeft2rightPath(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	cv::cuda::Stream stream);
+
+template <unsigned int MAX_DISPARITY>
+void aggregateRight2leftPath(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
+	unsigned int p1,
+	unsigned int p2,
+	cv::cuda::Stream stream);
 
 }
-}
+}}}
 
 #endif

@@ -17,10 +17,13 @@ limitations under the License.
 #include <cstdio>
 #include "horizontal_path_aggregation.hpp"
 #include "path_aggregation_common.hpp"
+#include "opencv2/core/cuda_stream_accessor.hpp"
 
-namespace sgm {
-namespace path_aggregation {
-
+namespace cv { namespace cuda { namespace device
+{
+    namespace stereosgm
+    {
+        namespace {
 static constexpr unsigned int DP_BLOCK_SIZE = 8u;
 static constexpr unsigned int DP_BLOCKS_PER_THREAD = 1u;
 
@@ -153,18 +156,17 @@ __global__ void aggregate_horizontal_path_kernel(
 		x0 += static_cast<int>(DP_BLOCK_SIZE) * DIRECTION;
 	}
 }
+}
 
 
 template <unsigned int MAX_DISPARITY>
 void enqueue_aggregate_left2right_path(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream)
+	cv::cuda::Stream _stream)
 {
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
 	static const unsigned int PATHS_PER_BLOCK =
@@ -178,14 +180,12 @@ void enqueue_aggregate_left2right_path(
 
 template <unsigned int MAX_DISPARITY>
 void enqueue_aggregate_right2left_path(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream)
+	cv::cuda::Stream _stream)
 {
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
 	static const unsigned int PATHS_PER_BLOCK =
@@ -239,4 +239,4 @@ template void enqueue_aggregate_right2left_path<128u>(
 	cudaStream_t stream);
 
 }
-}
+}}}
