@@ -25,7 +25,7 @@ namespace cv { namespace cuda { namespace device
     {
 
 template <unsigned int MAX_DISPARITY>
-void aggregateLeft2rightPath(
+void aggregateLeft2RightPath(
     const GpuMat& left,
     const GpuMat& right,
     GpuMat& dest,
@@ -34,7 +34,7 @@ void aggregateLeft2rightPath(
 	cv::cuda::Stream stream);
 
 template <unsigned int MAX_DISPARITY>
-void aggregateRight2leftPath(
+void aggregateRight2LeftPath(
     const GpuMat& left,
     const GpuMat& right,
     GpuMat& dest,
