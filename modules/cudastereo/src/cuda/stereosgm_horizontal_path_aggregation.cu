@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 #include <cstdio>
-#include "horizontal_path_aggregation.hpp"
-#include "path_aggregation_common.hpp"
+#include "stereosgm_horizontal_path_aggregation.hpp"
+#include "stereosgm_path_aggregation_common.hpp"
 #include "opencv2/core/cuda_stream_accessor.hpp"
 
 namespace cv { namespace cuda { namespace device
@@ -160,7 +160,7 @@ __global__ void aggregate_horizontal_path_kernel(
 
 
 template <unsigned int MAX_DISPARITY>
-void enqueue_aggregate_left2right_path(
+void aggregateLeft2RightPath(
     const GpuMat& left,
     const GpuMat& right,
     GpuMat& dest,
@@ -179,7 +179,7 @@ void enqueue_aggregate_left2right_path(
 }
 
 template <unsigned int MAX_DISPARITY>
-void enqueue_aggregate_right2left_path(
+void aggregateRight2LeftPath(
     const GpuMat& left,
     const GpuMat& right,
     GpuMat& dest,
@@ -198,45 +198,37 @@ void enqueue_aggregate_right2left_path(
 }
 
 
-template void enqueue_aggregate_left2right_path<64u>(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+template void aggregateLeft2RightPath<64u>(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	cv::cuda::Stream _stream);
 
-template void enqueue_aggregate_left2right_path<128u>(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+template void aggregateLeft2RightPath<128u>(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	cv::cuda::Stream _stream);
 
-template void enqueue_aggregate_right2left_path<64u>(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+template void aggregateRight2LeftPath<64u>(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	cv::cuda::Stream _stream);
 
-template void enqueue_aggregate_right2left_path<128u>(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+template void aggregateRight2LeftPath<128u>(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	cv::cuda::Stream _stream);
 
 }
 }}}
