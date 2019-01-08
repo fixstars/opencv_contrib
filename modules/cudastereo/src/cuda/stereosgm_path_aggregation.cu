@@ -17,9 +17,9 @@ limitations under the License.
 #include "stereosgm_path_aggregation.hpp"
 /*
 #include "vertical_path_aggregation.hpp"
-#include "horizontal_path_aggregation.hpp"
 #include "oblique_path_aggregation.hpp"
 */
+#include "stereosgm_horizontal_path_aggregation.hpp"
 
 namespace cv { namespace cuda { namespace device
 {
@@ -39,6 +39,10 @@ namespace cv { namespace cuda { namespace device
             std::array<Event, NUM_PATHS> events;
 
             // TODO add specific path aggregation
+            const Size size = left.size();
+            const size_t buffer_size = size.width * size.height * MAX_DISPARITY * NUM_PATHS;
+            aggregateLeft2RightPath(left, right, dest.colRange(0 * buffer_size, 1 * buffer_size), p1, p2, stream);
+            aggregateRight2LeftPath(left, right, dest.colRange(1 * buffer_size, 2 * buffer_size), p1, p2, stream);
 
             // synchronization
             for (int i = 0; i < NUM_PATHS; ++i)
