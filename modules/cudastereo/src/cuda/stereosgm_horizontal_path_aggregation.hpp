@@ -23,26 +23,24 @@ namespace cv { namespace cuda { namespace device
 {
     namespace stereosgm
     {
+        template <unsigned int MAX_DISPARITY>
+        void aggregateLeft2RightPath(
+            const GpuMat& left,
+            const GpuMat& right,
+            GpuMat& dest,
+            unsigned int p1,
+            unsigned int p2,
+            cv::cuda::Stream stream);
 
-template <unsigned int MAX_DISPARITY>
-void aggregateLeft2RightPath(
-    const GpuMat& left,
-    const GpuMat& right,
-    GpuMat& dest,
-	unsigned int p1,
-	unsigned int p2,
-	cv::cuda::Stream stream);
-
-template <unsigned int MAX_DISPARITY>
-void aggregateRight2LeftPath(
-    const GpuMat& left,
-    const GpuMat& right,
-    GpuMat& dest,
-	unsigned int p1,
-	unsigned int p2,
-	cv::cuda::Stream stream);
-
-}
+        template <unsigned int MAX_DISPARITY>
+        void aggregateRight2LeftPath(
+            const GpuMat& left,
+            const GpuMat& right,
+            GpuMat& dest,
+            unsigned int p1,
+            unsigned int p2,
+            cv::cuda::Stream stream);
+    }
 }}}
 
 #endif
