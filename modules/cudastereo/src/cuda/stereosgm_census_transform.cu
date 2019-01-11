@@ -116,7 +116,7 @@ namespace cv { namespace cuda { namespace device
                 (src.rows + height_per_block - 1) / height_per_block);
             const dim3 bdim(BLOCK_SIZE);
             cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
-            census_transform_kernel<uint32_t><<<gdim, bdim, 0, stream>>>(src, dest);
+            census_transform_kernel<int32_t><<<gdim, bdim, 0, stream>>>(src, dest);
         }
     }
 }}}
