@@ -23,7 +23,7 @@ limitations under the License.
 
 namespace cv { namespace cuda { namespace device
 {
-    namespace path_aggregation
+    namespace stereosgm
     {
         template <
             unsigned int DP_BLOCK_SIZE,
