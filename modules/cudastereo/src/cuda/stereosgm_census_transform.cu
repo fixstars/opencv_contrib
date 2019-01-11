@@ -58,7 +58,7 @@ namespace cv { namespace cuda { namespace device
             }
             __syncthreads();
 
-        #pragma unroll
+#pragma unroll
             for(int i = 0; i < LINES_PER_BLOCK; ++i){
                 if(i + 1 < LINES_PER_BLOCK){
                     // Load to smem
