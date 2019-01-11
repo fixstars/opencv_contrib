@@ -60,18 +60,18 @@ namespace cv { namespace cuda { namespace device
 #else
                     const uint32_t prev = __shfl_up(dp[DP_BLOCK_SIZE - 1], 1);
 #endif
-                    uint32_t out = min(dp[k] - last_min, p2);
-                    if(lane_id != 0){ out = min(out, prev - last_min + p1); }
-                    out = min(out, dp[k + 1] - last_min + p1);
+                    uint32_t out = ::min(dp[k] - last_min, p2);
+                    if(lane_id != 0){ out = ::min(out, prev - last_min + p1); }
+                    out = ::min(out, dp[k + 1] - last_min + p1);
                     lazy_out = local_min = out + local_costs[k];
                 }
                 for(unsigned int k = 1; k + 1 < DP_BLOCK_SIZE; ++k){
-                    uint32_t out = min(dp[k] - last_min, p2);
-                    out = min(out, dp[k - 1] - last_min + p1);
-                    out = min(out, dp[k + 1] - last_min + p1);
+                    uint32_t out = ::min(dp[k] - last_min, p2);
+                    out = ::min(out, dp[k - 1] - last_min + p1);
+                    out = ::min(out, dp[k + 1] - last_min + p1);
                     dp[k - 1] = lazy_out;
                     lazy_out = out + local_costs[k];
-                    local_min = min(local_min, lazy_out);
+                    local_min = ::min(local_min, lazy_out);
                 }
                 {
                     const unsigned int k = DP_BLOCK_SIZE - 1;
@@ -80,14 +80,14 @@ namespace cv { namespace cuda { namespace device
 #else
                     const uint32_t next = __shfl_down(dp0, 1);
 #endif
-                    uint32_t out = min(dp[k] - last_min, p2);
-                    out = min(out, dp[k - 1] - last_min + p1);
+                    uint32_t out = ::min(dp[k] - last_min, p2);
+                    out = ::min(out, dp[k - 1] - last_min + p1);
                     if(lane_id + 1 != SUBGROUP_SIZE){
-                        out = min(out, next - last_min + p1);
+                        out = ::min(out, next - last_min + p1);
                     }
                     dp[k - 1] = lazy_out;
                     dp[k] = out + local_costs[k];
-                    local_min = min(local_min, dp[k]);
+                    local_min = ::min(local_min, dp[k]);
                 }
                 last_min = subgroup_min<SUBGROUP_SIZE>(local_min, mask);
             }

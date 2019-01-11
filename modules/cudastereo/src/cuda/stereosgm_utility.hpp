@@ -30,9 +30,9 @@ namespace cv { namespace cuda { namespace device
             struct subgroup_min_impl {
                 static __device__ T call(T x, uint32_t mask){
         #if CUDA_VERSION >= 9000
-                    x = min(x, __shfl_xor_sync(mask, x, STEP / 2, GROUP_SIZE));
+                    x = ::min(x, __shfl_xor_sync(mask, x, STEP / 2, GROUP_SIZE));
         #else
-                    x = min(x, __shfl_xor(x, STEP / 2, GROUP_SIZE));
+                    x = ::min(x, __shfl_xor(x, STEP / 2, GROUP_SIZE));
         #endif
                     return subgroup_min_impl<T, GROUP_SIZE, STEP / 2>::call(x, mask);
                 }
