@@ -15,8 +15,9 @@ limitations under the License.
 */
 
 #include <cstdio>
-#include "vertical_path_aggregation.hpp"
-#include "path_aggregation_common.hpp"
+#include "stereosgm_vertical_path_aggregation.hpp"
+#include "stereosgm_path_aggregation_common.hpp"
+#include "opencv2/core/cuda_stream_accessor.hpp"
 
 namespace cv { namespace cuda { namespace device
 {
@@ -49,7 +50,7 @@ __global__ void aggregate_vertical_path_kernel(
 		return;
 	}
 
-	__shared__ feature_type right_buffer[2 * DP_BLOCK_SIZE][RIGHT_BUFFER_ROWS + 1];
+	__shared__ int32_t right_buffer[2 * DP_BLOCK_SIZE][RIGHT_BUFFER_ROWS + 1];
 	DynamicProgramming<DP_BLOCK_SIZE, SUBGROUP_SIZE> dp;
 
 	const unsigned int warp_id  = threadIdx.x / WARP_SIZE;
@@ -73,7 +74,7 @@ __global__ void aggregate_vertical_path_kernel(
 	for(unsigned int iter = 0; iter < height; ++iter){
 		const unsigned int y = (DIRECTION > 0 ? iter : height - 1 - iter);
 		// Load left to register
-		feature_type left_value;
+		int32_t left_value;
 		if(x < width){
 			left_value = left(y, x);
 		}
@@ -82,7 +83,7 @@ __global__ void aggregate_vertical_path_kernel(
 			const unsigned int i = i0 + threadIdx.x;
 			if(i < RIGHT_BUFFER_SIZE){
 				const int x = static_cast<int>(right_x0 + PATHS_PER_BLOCK - 1 - i);
-				feature_type right_value = 0;
+				int32_t right_value = 0;
 				if(0 <= x && x < static_cast<int>(width)){
 					right_value = right(y, x);
 				}
@@ -97,7 +98,7 @@ __global__ void aggregate_vertical_path_kernel(
 		__syncthreads();
 		// Compute
 		if(x < width){
-			feature_type right_values[DP_BLOCK_SIZE];
+			int32_t right_values[DP_BLOCK_SIZE];
 			for(unsigned int j = 0; j < DP_BLOCK_SIZE; ++j){
 				right_values[j] = right_buffer[right0_addr_lo + j][right0_addr_hi];
 			}

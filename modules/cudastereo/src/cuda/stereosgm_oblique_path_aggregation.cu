@@ -50,7 +50,7 @@ __global__ void aggregate_oblique_path_kernel(
 		return;
 	}
 
-	__shared__ feature_type right_buffer[2 * DP_BLOCK_SIZE][RIGHT_BUFFER_ROWS];
+	__shared__ int32_t right_buffer[2 * DP_BLOCK_SIZE][RIGHT_BUFFER_ROWS];
 	DynamicProgramming<DP_BLOCK_SIZE, SUBGROUP_SIZE> dp;
 
 	const unsigned int warp_id  = threadIdx.x / WARP_SIZE;
@@ -83,7 +83,7 @@ __global__ void aggregate_oblique_path_kernel(
 			const unsigned int i = i0 + threadIdx.x;
 			if(i < RIGHT_BUFFER_SIZE){
 				const int x = static_cast<int>(right_x0 + PATHS_PER_BLOCK - 1 - i);
-				feature_type right_value = 0;
+				int32_t right_value = 0;
 				if(0 <= x && x < static_cast<int>(width)){
 					right_value = right(y, x);
 				}
@@ -98,8 +98,8 @@ __global__ void aggregate_oblique_path_kernel(
 		__syncthreads();
 		// Compute
 		if(0 <= x && x < static_cast<int>(width)){
-			const feature_type left_value = __ldg(&left(y, x));
-			feature_type right_values[DP_BLOCK_SIZE];
+			const int32_t left_value = __ldg(&left(y, x));
+			int32_t right_values[DP_BLOCK_SIZE];
 			for(unsigned int j = 0; j < DP_BLOCK_SIZE; ++j){
 				right_values[j] = right_buffer[right0_addr_lo + j][right0_addr_hi];
 			}
@@ -190,7 +190,7 @@ void aggregateDownleft2UprightPath(
 	static const unsigned int PATHS_PER_BLOCK = BLOCK_SIZE / SUBGROUP_SIZE;
 
     const Size size = left.size();
-	const int gdim = (width + height + PATHS_PER_BLOCK - 2) / PATHS_PER_BLOCK;
+	const int gdim = (size.width + size.height + PATHS_PER_BLOCK - 2) / PATHS_PER_BLOCK;
 	const int bdim = BLOCK_SIZE;
     cudaStream_t stream = StreamAccessor::getStream(_stream);
 	aggregate_oblique_path_kernel<1, -1, MAX_DISPARITY><<<gdim, bdim, 0, stream>>>(
