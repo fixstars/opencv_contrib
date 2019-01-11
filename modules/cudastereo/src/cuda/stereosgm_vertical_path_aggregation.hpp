@@ -17,34 +17,32 @@ limitations under the License.
 #ifndef SGM_VERTICAL_PATH_AGGREGATION_HPP
 #define SGM_VERTICAL_PATH_AGGREGATION_HPP
 
-#include "types.hpp"
+#include "opencv2/core/cuda.hpp"
 
-namespace sgm {
-namespace path_aggregation {
-
-template <unsigned int MAX_DISPARITY>
-void enqueue_aggregate_up2down_path(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
-	unsigned int p1,
-	unsigned int p2,
-	cudaStream_t stream);
+namespace cv { namespace cuda { namespace device
+{
+namespace stereosgm
+{
 
 template <unsigned int MAX_DISPARITY>
-void enqueue_aggregate_down2up_path(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+void aggregateUp2DownPath(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	Stream stream);
+
+template <unsigned int MAX_DISPARITY>
+void aggregateDown2UpPath(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
+	unsigned int p1,
+	unsigned int p2,
+	Stream stream);
 
 }
-}
+}}}
 
 #endif

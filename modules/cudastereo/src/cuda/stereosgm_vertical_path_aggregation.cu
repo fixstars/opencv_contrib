@@ -18,17 +18,20 @@ limitations under the License.
 #include "vertical_path_aggregation.hpp"
 #include "path_aggregation_common.hpp"
 
-namespace sgm {
-namespace path_aggregation {
-
+namespace cv { namespace cuda { namespace device
+{
+namespace stereosgm
+{
+namespace
+{
 static constexpr unsigned int DP_BLOCK_SIZE = 16u;
 static constexpr unsigned int BLOCK_SIZE = WARP_SIZE * 8u;
 
 template <int DIRECTION, unsigned int MAX_DISPARITY>
 __global__ void aggregate_vertical_path_kernel(
-	uint8_t *dest,
-	const feature_type *left,
-	const feature_type *right,
+    PtrStep<int32_t> left,
+    PtrStep<int32_t> right,
+    PtrStep<uint8_t> dest,
 	int width,
 	int height,
 	unsigned int p1,
@@ -72,7 +75,7 @@ __global__ void aggregate_vertical_path_kernel(
 		// Load left to register
 		feature_type left_value;
 		if(x < width){
-			left_value = left[x + y * width];
+			left_value = left(y, x);
 		}
 		// Load right to smem
 		for(unsigned int i0 = 0; i0 < RIGHT_BUFFER_SIZE; i0 += BLOCK_SIZE){
@@ -81,7 +84,7 @@ __global__ void aggregate_vertical_path_kernel(
 				const int x = static_cast<int>(right_x0 + PATHS_PER_BLOCK - 1 - i);
 				feature_type right_value = 0;
 				if(0 <= x && x < static_cast<int>(width)){
-					right_value = right[x + y * width];
+					right_value = right(y, x);
 				}
 				const unsigned int lo = i % DP_BLOCK_SIZE;
 				const unsigned int hi = i / DP_BLOCK_SIZE;
@@ -104,93 +107,86 @@ __global__ void aggregate_vertical_path_kernel(
 			}
 			dp.update(local_costs, p1, p2, shfl_mask);
 			store_uint8_vector<DP_BLOCK_SIZE>(
-				&dest[dp_offset + x * MAX_DISPARITY + y * MAX_DISPARITY * width],
+				&dest(0, dp_offset + x * MAX_DISPARITY + y * MAX_DISPARITY * width),
 				dp.dp);
 		}
 		__syncthreads();
 	}
 }
+}
 
 template <unsigned int MAX_DISPARITY>
-void enqueue_aggregate_up2down_path(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+void aggregateUp2DownPath(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream)
+	Stream _stream)
 {
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
 	static const unsigned int PATHS_PER_BLOCK = BLOCK_SIZE / SUBGROUP_SIZE;
 
-	const int gdim = (width + PATHS_PER_BLOCK - 1) / PATHS_PER_BLOCK;
+    const Size size = left.size();
+	const int gdim = (size.width + PATHS_PER_BLOCK - 1) / PATHS_PER_BLOCK;
 	const int bdim = BLOCK_SIZE;
+    cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
 	aggregate_vertical_path_kernel<1, MAX_DISPARITY><<<gdim, bdim, 0, stream>>>(
-		dest, left, right, width, height, p1, p2);
+		left, right, dest, size.width, size.height, p1, p2);
 }
 
 template <unsigned int MAX_DISPARITY>
-void enqueue_aggregate_down2up_path(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+void aggregateDown2UpPath(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream)
+	Stream _stream)
 {
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
 	static const unsigned int PATHS_PER_BLOCK = BLOCK_SIZE / SUBGROUP_SIZE;
 
-	const int gdim = (width + PATHS_PER_BLOCK - 1) / PATHS_PER_BLOCK;
+    const Size size = left.size();
+	const int gdim = (size.width + PATHS_PER_BLOCK - 1) / PATHS_PER_BLOCK;
 	const int bdim = BLOCK_SIZE;
+    cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
 	aggregate_vertical_path_kernel<-1, MAX_DISPARITY><<<gdim, bdim, 0, stream>>>(
-		dest, left, right, width, height, p1, p2);
+		left, right, dest, size.width, size.height, p1, p2);
 }
 
 
-template void enqueue_aggregate_up2down_path<64u>(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+template void aggregateUp2DownPath<64u>(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	Stream stream);
 
-template void enqueue_aggregate_up2down_path<128u>(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+template void aggregateUp2DownPath<128u>(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	Stream stream);
 
-template void enqueue_aggregate_down2up_path<64u>(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+template void aggregateDown2UpPath<64u>(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	Stream stream);
 
-template void enqueue_aggregate_down2up_path<128u>(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+template void aggregateDown2UpPath<128u>(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	Stream stream);
 
 }
-}
+}}}

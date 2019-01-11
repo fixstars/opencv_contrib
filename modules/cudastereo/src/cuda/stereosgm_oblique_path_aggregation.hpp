@@ -17,56 +17,49 @@ limitations under the License.
 #ifndef SGM_OBLIQUE_PATH_AGGREGATION_HPP
 #define SGM_OBLIQUE_PATH_AGGREGATION_HPP
 
-#include "types.hpp"
+#include "opencv2/core/cuda.hpp"
 
-namespace sgm {
-namespace path_aggregation {
-
-template <unsigned int MAX_DISPARITY>
-void enqueue_aggregate_upleft2downright_path(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
-	unsigned int p1,
-	unsigned int p2,
-	cudaStream_t stream);
+namespace cv { namespace cuda { namespace device
+{
+namespace stereosgm {
 
 template <unsigned int MAX_DISPARITY>
-void enqueue_aggregate_upright2downleft_path(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+void aggregateUpleft2DownrightPath(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	Stream stream);
 
 template <unsigned int MAX_DISPARITY>
-void enqueue_aggregate_downright2upleft_path(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+void aggregateUpright2DownleftPath(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	Stream stream);
 
 template <unsigned int MAX_DISPARITY>
-void enqueue_aggregate_downleft2upright_path(
-	cost_type *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+void aggregateDownright2UpleftPath(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cudaStream_t stream);
+	Stream stream);
+
+template <unsigned int MAX_DISPARITY>
+void aggregateDownleft2UprightPath(
+    const GpuMat& left,
+    const GpuMat& right,
+    GpuMat& dest,
+	unsigned int p1,
+	unsigned int p2,
+	Stream stream);
 
 }
-}
+}}}
 
 #endif
