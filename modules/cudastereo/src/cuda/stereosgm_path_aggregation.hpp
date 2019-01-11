@@ -24,7 +24,7 @@ namespace cv { namespace cuda { namespace device
     namespace stereosgm
     {
         template <size_t MAX_DISPARITY>
-        void pathAggregation(const GpuMat& left, const GpuMat& right, GpuMat& dest, Stream& stream);
+        void pathAggregation(const GpuMat& left, const GpuMat& right, GpuMat& dest, int p1, int p2, Stream& stream);
     }
 }}}
 

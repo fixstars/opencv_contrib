@@ -26,7 +26,7 @@ namespace cv { namespace cuda { namespace device
     namespace stereosgm
     {
         template <size_t MAX_DISPARITY>
-        void pathAggregation<MAX_DISPARITY>(const GpuMat& left, const GpuMat& right, GpuMat& dest, Stream& stream)
+        void pathAggregation<MAX_DISPARITY>(const GpuMat& left, const GpuMat& right, GpuMat& dest, int p1, int p2, Stream& stream)
         {
             static const unsigned int NUM_PATHS = 8;
             CV_Assert(left.size() == right.size());
@@ -41,8 +41,8 @@ namespace cv { namespace cuda { namespace device
             // TODO add specific path aggregation
             const Size size = left.size();
             const size_t buffer_size = size.width * size.height * MAX_DISPARITY * NUM_PATHS;
-            aggregateLeft2RightPath(left, right, dest.colRange(0 * buffer_size, 1 * buffer_size), p1, p2, stream);
-            aggregateRight2LeftPath(left, right, dest.colRange(1 * buffer_size, 2 * buffer_size), p1, p2, stream);
+            aggregateLeft2RightPath<MAX_DISPARITY>(left, right, dest.colRange(0 * buffer_size, 1 * buffer_size), p1, p2, streams[0]);
+            aggregateRight2LeftPath<MAX_DISPARITY>(left, right, dest.colRange(1 * buffer_size, 2 * buffer_size), p1, p2, streams[1]);
 
             // synchronization
             for (int i = 0; i < NUM_PATHS; ++i)
@@ -52,7 +52,7 @@ namespace cv { namespace cuda { namespace device
             }
         }
 
-        template void pathAggregation< 64>(const GpuMat& left, const GpuMat& right, GpuMat& dest, Stream& stream);
-        template void pathAggregation<128>(const GpuMat& left, const GpuMat& right, GpuMat& dest, Stream& stream);
+        template void pathAggregation< 64>(const GpuMat& left, const GpuMat& right, GpuMat& dest, int p1, int p2, Stream& stream);
+        template void pathAggregation<128>(const GpuMat& left, const GpuMat& right, GpuMat& dest, int p1, int p2, Stream& stream);
 	}
 }}}
