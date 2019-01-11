@@ -21,9 +21,10 @@ limitations under the License.
 
 namespace cv { namespace cuda { namespace device
 {
-    namespace stereosgm
-    {
-        namespace {
+namespace stereosgm
+{
+namespace
+{
 static constexpr unsigned int DP_BLOCK_SIZE = 8u;
 static constexpr unsigned int DP_BLOCKS_PER_THREAD = 1u;
 
@@ -33,11 +34,11 @@ static constexpr unsigned int BLOCK_SIZE = WARP_SIZE * WARPS_PER_BLOCK;
 
 template <int DIRECTION, unsigned int MAX_DISPARITY>
 __global__ void aggregate_horizontal_path_kernel(
-	uint8_t *dest,
-	const feature_type *left,
-	const feature_type *right,
-	int width,
-	int height,
+    PtrStep<int32_t> left,
+    PtrStep<int32_t> right,
+    PtrStep<uint8_t> dest,
+    int width,
+    int height,
 	unsigned int p1,
 	unsigned int p2)
 {
@@ -53,7 +54,7 @@ __global__ void aggregate_horizontal_path_kernel(
 		return;
 	}
 
-	feature_type right_buffer[DP_BLOCKS_PER_THREAD][DP_BLOCK_SIZE];
+	int32_t right_buffer[DP_BLOCKS_PER_THREAD][DP_BLOCK_SIZE];
 	DynamicProgramming<DP_BLOCK_SIZE, SUBGROUP_SIZE> dp[DP_BLOCKS_PER_THREAD];
 
 	const unsigned int warp_id  = threadIdx.x / WARP_SIZE;
@@ -66,12 +67,12 @@ __global__ void aggregate_horizontal_path_kernel(
 		PATHS_PER_BLOCK * blockIdx.x +
 		PATHS_PER_WARP  * warp_id +
 		group_id;
-	const unsigned int feature_step = SUBGROUPS_PER_WARP * width;
+	const unsigned int feature_step = SUBGROUPS_PER_WARP;
 	const unsigned int dest_step = SUBGROUPS_PER_WARP * MAX_DISPARITY * width;
 	const unsigned int dp_offset = lane_id * DP_BLOCK_SIZE;
-	left  += y0 * width;
-	right += y0 * width;
-	dest  += y0 * MAX_DISPARITY * width;
+	left  = PtrStep<int32_t>( left.ptr(y0),  left.step);
+	right = PtrStep<int32_t>(right.ptr(y0), right.step);
+    dest  = PtrStep<uint8_t>(&dest(0, y0 * width * MAX_DISPARITY), dest.step);
 
 	if(y0 >= height){
 		return;
@@ -88,7 +89,7 @@ __global__ void aggregate_horizontal_path_kernel(
 			for(unsigned int j = 0; j < DP_BLOCK_SIZE; ++j){
 				const int x = static_cast<int>(width - (j + dp_offset));
 				if(0 <= x && x < static_cast<int>(width)){
-					right_buffer[i][j] = __ldg(&right[i * feature_step + x]);
+					right_buffer[i][j] = __ldg(&right(i * feature_step, x));
 				}else{
 					right_buffer[i][j] = 0;
 				}
@@ -108,9 +109,9 @@ __global__ void aggregate_horizontal_path_kernel(
 				if(y >= height){
 					continue;
 				}
-				const feature_type left_value = __ldg(&left[j * feature_step + x]);
+				const int32_t left_value = __ldg(&left(j * feature_step, x));
 				if(DIRECTION > 0){
-					const feature_type t = right_buffer[j][DP_BLOCK_SIZE - 1];
+					const int32_t t = right_buffer[j][DP_BLOCK_SIZE - 1];
 					for(unsigned int k = DP_BLOCK_SIZE - 1; k > 0; --k){
 						right_buffer[j][k] = right_buffer[j][k - 1];
 					}
@@ -121,10 +122,10 @@ __global__ void aggregate_horizontal_path_kernel(
 #endif
 					if(lane_id == 0){
 						right_buffer[j][0] =
-							__ldg(&right[j * feature_step + x - dp_offset]);
+							__ldg(&right(j * feature_step, x - dp_offset));
 					}
 				}else{
-					const feature_type t = right_buffer[j][0];
+					const int32_t t = right_buffer[j][0];
 					for(unsigned int k = 1; k < DP_BLOCK_SIZE; ++k){
 						right_buffer[j][k - 1] = right_buffer[j][k];
 					}
@@ -137,7 +138,7 @@ __global__ void aggregate_horizontal_path_kernel(
 					if(lane_id + 1 == SUBGROUP_SIZE){
 						if(x >= dp_offset + DP_BLOCK_SIZE - 1){
 							right_buffer[j][DP_BLOCK_SIZE - 1] =
-								__ldg(&right[j * feature_step + x - (dp_offset + DP_BLOCK_SIZE - 1)]);
+								__ldg(&right(j * feature_step, x - (dp_offset + DP_BLOCK_SIZE - 1)));
 						}else{
 							right_buffer[j][DP_BLOCK_SIZE - 1] = 0;
 						}
@@ -149,7 +150,7 @@ __global__ void aggregate_horizontal_path_kernel(
 				}
 				dp[j].update(local_costs, p1, p2, shfl_mask);
 				store_uint8_vector<DP_BLOCK_SIZE>(
-					&dest[j * dest_step + x * MAX_DISPARITY + dp_offset],
+					&dest(0, j * dest_step + x * MAX_DISPARITY + dp_offset),
 					dp[j].dp);
 			}
 		}
@@ -168,14 +169,19 @@ void aggregateLeft2RightPath(
 	unsigned int p2,
 	cv::cuda::Stream _stream)
 {
+    CV_Assert(left.size() == right.size());
+    CV_Assert(left.size() == dest.size());
+    CV_Assert(left.type() == right.type());
+    CV_Assert(left.type() == CV_32SC1);
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
 	static const unsigned int PATHS_PER_BLOCK =
 		BLOCK_SIZE * DP_BLOCKS_PER_THREAD / SUBGROUP_SIZE;
 
-	const int gdim = (height + PATHS_PER_BLOCK - 1) / PATHS_PER_BLOCK;
+	const int gdim = (left.rows + PATHS_PER_BLOCK - 1) / PATHS_PER_BLOCK;
 	const int bdim = BLOCK_SIZE;
+    cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
 	aggregate_horizontal_path_kernel<1, MAX_DISPARITY><<<gdim, bdim, 0, stream>>>(
-		dest, left, right, width, height, p1, p2);
+		left, right, dest, left.cols, left.rows, p1, p2);
 }
 
 template <unsigned int MAX_DISPARITY>
@@ -187,14 +193,19 @@ void aggregateRight2LeftPath(
 	unsigned int p2,
 	cv::cuda::Stream _stream)
 {
+    CV_Assert(left.size() == right.size());
+    CV_Assert(left.size() == dest.size());
+    CV_Assert(left.type() == right.type());
+    CV_Assert(left.type() == CV_32SC1);
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
 	static const unsigned int PATHS_PER_BLOCK =
 		BLOCK_SIZE * DP_BLOCKS_PER_THREAD / SUBGROUP_SIZE;
 
-	const int gdim = (height + PATHS_PER_BLOCK - 1) / PATHS_PER_BLOCK;
+	const int gdim = (left.rows + PATHS_PER_BLOCK - 1) / PATHS_PER_BLOCK;
 	const int bdim = BLOCK_SIZE;
+    cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
 	aggregate_horizontal_path_kernel<-1, MAX_DISPARITY><<<gdim, bdim, 0, stream>>>(
-		dest, left, right, width, height, p1, p2);
+		left, right, dest, left.cols, left.rows, p1, p2);
 }
 
 
