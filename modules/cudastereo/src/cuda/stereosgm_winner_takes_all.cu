@@ -16,7 +16,6 @@ limitations under the License.
 
 #include <cstdio>
 #include <cuda.h>
-#include <device_functions.h>
 #include "stereosgm_winner_takes_all.hpp"
 #include "stereosgm_utility.hpp"
 #include "opencv2/core/cuda_stream_accessor.hpp"
