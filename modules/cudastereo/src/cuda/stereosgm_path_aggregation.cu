@@ -24,7 +24,7 @@ namespace cv { namespace cuda { namespace device
 namespace stereosgm
 {
 template <size_t MAX_DISPARITY>
-void pathAggregation<MAX_DISPARITY>(const GpuMat& left, const GpuMat& right, GpuMat& dest, int p1, int p2, Stream& stream)
+void pathAggregation(const GpuMat& left, const GpuMat& right, GpuMat& dest, int p1, int p2, Stream& stream)
 {
     static const unsigned int NUM_PATHS = 8;
     CV_Assert(left.size() == right.size());
