@@ -37,7 +37,7 @@ void pathAggregation(const GpuMat& left, const GpuMat& right, GpuMat& dest, int 
 
     const Size size = left.size();
     const size_t buffer_step = size.width * size.height * MAX_DISPARITY;
-    CV_Assert(buffer_step * NUM_PATHS == dest.cols);
+    CV_Assert(dest.rows == 1 && buffer_step * NUM_PATHS == dest.cols);
     std::array<GpuMat, NUM_PATHS> subs;
     for (int i = 0; i < NUM_PATHS; ++i) {
         subs[i] = dest.colRange(i * buffer_step, (i + 1) * buffer_step);
