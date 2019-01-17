@@ -142,9 +142,11 @@ namespace cv { namespace cuda { namespace device
 
             template <unsigned int MAX_DISPARITY, ComputeDisparity compute_disparity = compute_disparity_normal<MAX_DISPARITY>>
             __global__ void winner_takes_all_kernel(
-                const PtrStepSz<uint8_t> _src,
-                PtrStep<uint16_t> _left_dest,
-                PtrStep<uint16_t> _right_dest,
+                const PtrStep<uint8_t> _src,
+                PtrStep<int16_t> _left_dest,
+                PtrStep<int16_t> _right_dest,
+                int width,
+                int height,
                 float uniqueness)
             {
                 static const unsigned int ACCUMULATION_PER_THREAD = 16u;
@@ -155,16 +157,16 @@ namespace cv { namespace cuda { namespace device
                         ? REDUCTION_PER_THREAD
                         : ACCUMULATION_INTERVAL;
 
-                const unsigned int cost_step = MAX_DISPARITY * _src.cols * _src.rows;
+                const unsigned int cost_step = MAX_DISPARITY * width * height;
                 const unsigned int warp_id = threadIdx.x / WARP_SIZE;
                 const unsigned int lane_id = threadIdx.x % WARP_SIZE;
 
                 const unsigned int y = blockIdx.x * WARPS_PER_BLOCK + warp_id;
-                const uint8_t *src = _src.ptr(y * MAX_DISPARITY);
-                uint16_t *left_dest  = _left_dest.ptr(y);
-                uint16_t *right_dest  = _right_dest.ptr(y);
+                const PtrStep<uint8_t> src{(uint8_t*)&_src(0, y * MAX_DISPARITY * width), height * width * MAX_DISPARITY * NUM_PATHS};
+                PtrStep<int16_t> left_dest{_left_dest.ptr(y), _left_dest.step};
+                PtrStep<int16_t> right_dest{_right_dest.ptr(y), _right_dest.step};
 
-                if(y >= _src.rows){
+                if(y >= height){
                     return;
                 }
 
@@ -175,7 +177,7 @@ namespace cv { namespace cuda { namespace device
                     right_top2[i].initialize();
                 }
 
-                for(unsigned int x0 = 0; x0 < _src.cols; x0 += UNROLL_DEPTH){
+                for(unsigned int x0 = 0; x0 < width; x0 += UNROLL_DEPTH){
             #pragma unroll
                     for(unsigned int x1 = 0; x1 < UNROLL_DEPTH; ++x1){
                         if(x1 % ACCUMULATION_INTERVAL == 0){
@@ -183,7 +185,7 @@ namespace cv { namespace cuda { namespace device
                             const unsigned int k_hi = k / MAX_DISPARITY;
                             const unsigned int k_lo = k % MAX_DISPARITY;
                             const unsigned int x = x0 + x1 + k_hi;
-                            if(x < _src.cols){
+                            if(x < width){
                                 const unsigned int offset = x * MAX_DISPARITY + k_lo;
                                 uint32_t sum[ACCUMULATION_PER_THREAD];
                                 for(unsigned int i = 0; i < ACCUMULATION_PER_THREAD; ++i){
@@ -192,7 +194,7 @@ namespace cv { namespace cuda { namespace device
                                 for(unsigned int p = 0; p < NUM_PATHS; ++p){
                                     uint32_t load_buffer[ACCUMULATION_PER_THREAD];
                                     load_uint8_vector<ACCUMULATION_PER_THREAD>(
-                                        load_buffer, &src[p * cost_step + offset]);
+                                        load_buffer, &src(0, p * cost_step + offset));
                                     for(unsigned int i = 0; i < ACCUMULATION_PER_THREAD; ++i){
                                         sum[i] += load_buffer[i];
                                     }
@@ -207,7 +209,7 @@ namespace cv { namespace cuda { namespace device
             #endif
                         }
                         const unsigned int x = x0 + x1;
-                        if(x < _src.cols){
+                        if(x < width){
                             // Load sum of costs
                             const unsigned int smem_x = x1 % ACCUMULATION_INTERVAL;
                             const unsigned int k0 = lane_id * REDUCTION_PER_THREAD;
@@ -227,7 +229,7 @@ namespace cv { namespace cuda { namespace device
                             }
                             left_top2 = subgroup_merge_top2<WARP_SIZE>(left_top2);
                             if(lane_id == 0){
-                                left_dest[x] = compute_disparity(left_top2, uniqueness, smem_cost_sum[warp_id][smem_x]);
+                                left_dest(0, x) = compute_disparity(left_top2, uniqueness, smem_cost_sum[warp_id][smem_x]);
                             }
                             // Update right
             #pragma unroll
@@ -249,7 +251,7 @@ namespace cv { namespace cuda { namespace device
                                 right_top2[i].push(recv);
                                 if(d == MAX_DISPARITY - 1){
                                     if(0 <= p){
-                                        right_dest[p] = compute_disparity_normal<MAX_DISPARITY>(right_top2[i], uniqueness);
+                                        right_dest(0, p) = compute_disparity_normal<MAX_DISPARITY>(right_top2[i], uniqueness);
                                     }
                                     right_top2[i].initialize();
                                 }
@@ -259,8 +261,8 @@ namespace cv { namespace cuda { namespace device
                 }
                 for(unsigned int i = 0; i < REDUCTION_PER_THREAD; ++i){
                     const unsigned int k = lane_id * REDUCTION_PER_THREAD + i;
-                    const int p = static_cast<int>(((_src.cols - k) & ~(MAX_DISPARITY - 1)) + k);
-                    if(p < _src.cols){
+                    const int p = static_cast<int>(((width - k) & ~(MAX_DISPARITY - 1)) + k);
+                    if(p < width){
                         right_dest[p] = compute_disparity_normal<MAX_DISPARITY>(right_top2[i], uniqueness);
                     }
                 }
@@ -270,18 +272,21 @@ namespace cv { namespace cuda { namespace device
         template <size_t MAX_DISPARITY>
         void winnerTakesAll(const GpuMat& src, GpuMat& left, GpuMat& right, float uniqueness, bool subpixel, cv::cuda::Stream& _stream)
         {
-            CV_Assert(src.size() == left.size() && left.size() == right.size());
-            CV_Assert(src.type() == CV_16UC1);
+            cv::Size size = left.size();
+            CV_Assert(src.rows == 1 && src.cols == size.width * size.height * MAX_DISPARITY * NUM_PATHS);
+            CV_Assert(size == right.size());
+            CV_Assert(left.type() == right.type());
+            CV_Assert(src.type() == CV_8UC1);
             const int gdim =
                 (src.rows + WARPS_PER_BLOCK - 1) / WARPS_PER_BLOCK;
             const int bdim = BLOCK_SIZE;
             cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
             if (subpixel) {
                 winner_takes_all_kernel<MAX_DISPARITY, compute_disparity_subpixel<MAX_DISPARITY>><<<gdim, bdim, 0, stream>>>(
-                    src, left, right, uniqueness);
+                    src, left, right, size.width, size.height, uniqueness);
             } else {
                 winner_takes_all_kernel<MAX_DISPARITY, compute_disparity_normal<MAX_DISPARITY>><<<gdim, bdim, 0, stream>>>(
-                    src, left, right, uniqueness);
+                    src, left, right, size.width, size.height, uniqueness);
             }
         }
         template void winnerTakesAll< 64>(const GpuMat&, GpuMat&, GpuMat&, float, bool, cv::cuda::Stream&);
