@@ -123,7 +123,7 @@ void aggregateUp2DownPath(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream _stream)
+	Stream& _stream)
 {
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
 	static const unsigned int PATHS_PER_BLOCK = BLOCK_SIZE / SUBGROUP_SIZE;
@@ -143,7 +143,7 @@ void aggregateDown2UpPath(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream _stream)
+	Stream& _stream)
 {
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
 	static const unsigned int PATHS_PER_BLOCK = BLOCK_SIZE / SUBGROUP_SIZE;
@@ -163,7 +163,7 @@ template void aggregateUp2DownPath<64u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 template void aggregateUp2DownPath<128u>(
     const GpuMat& left,
@@ -171,7 +171,7 @@ template void aggregateUp2DownPath<128u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 template void aggregateDown2UpPath<64u>(
     const GpuMat& left,
@@ -179,7 +179,7 @@ template void aggregateDown2UpPath<64u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 template void aggregateDown2UpPath<128u>(
     const GpuMat& left,
@@ -187,7 +187,7 @@ template void aggregateDown2UpPath<128u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 }
 }}}

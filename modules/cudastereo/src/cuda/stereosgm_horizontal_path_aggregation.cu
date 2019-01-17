@@ -167,7 +167,7 @@ void aggregateLeft2RightPath(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cv::cuda::Stream _stream)
+	Stream& _stream)
 {
     CV_Assert(left.size() == right.size());
     CV_Assert(left.size() == dest.size());
@@ -191,7 +191,7 @@ void aggregateRight2LeftPath(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cv::cuda::Stream _stream)
+	Stream& _stream)
 {
     CV_Assert(left.size() == right.size());
     CV_Assert(left.size() == dest.size());
@@ -215,7 +215,7 @@ template void aggregateLeft2RightPath<64u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cv::cuda::Stream _stream);
+	Stream& _stream);
 
 template void aggregateLeft2RightPath<128u>(
     const GpuMat& left,
@@ -223,7 +223,7 @@ template void aggregateLeft2RightPath<128u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cv::cuda::Stream _stream);
+	Stream& _stream);
 
 template void aggregateRight2LeftPath<64u>(
     const GpuMat& left,
@@ -231,7 +231,7 @@ template void aggregateRight2LeftPath<64u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cv::cuda::Stream _stream);
+	Stream& _stream);
 
 template void aggregateRight2LeftPath<128u>(
     const GpuMat& left,
@@ -239,7 +239,7 @@ template void aggregateRight2LeftPath<128u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	cv::cuda::Stream _stream);
+	Stream& _stream);
 
 }
 }}}

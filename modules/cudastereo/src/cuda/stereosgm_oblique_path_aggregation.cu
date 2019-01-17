@@ -124,7 +124,7 @@ void aggregateUpleft2DownrightPath(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream _stream)
+	Stream& _stream)
 {
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
 	static const unsigned int PATHS_PER_BLOCK = BLOCK_SIZE / SUBGROUP_SIZE;
@@ -144,7 +144,7 @@ void aggregateUpright2DownleftPath(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream _stream)
+	Stream& _stream)
 {
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
 	static const unsigned int PATHS_PER_BLOCK = BLOCK_SIZE / SUBGROUP_SIZE;
@@ -164,7 +164,7 @@ void aggregateDownright2UpleftPath(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream _stream)
+	Stream& _stream)
 {
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
 	static const unsigned int PATHS_PER_BLOCK = BLOCK_SIZE / SUBGROUP_SIZE;
@@ -184,7 +184,7 @@ void aggregateDownleft2UprightPath(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream _stream)
+	Stream& _stream)
 {
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
 	static const unsigned int PATHS_PER_BLOCK = BLOCK_SIZE / SUBGROUP_SIZE;
@@ -203,7 +203,7 @@ template void aggregateUpleft2DownrightPath<64u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 template void aggregateUpleft2DownrightPath<128u>(
     const GpuMat& left,
@@ -211,7 +211,7 @@ template void aggregateUpleft2DownrightPath<128u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 template void aggregateUpright2DownleftPath<64u>(
     const GpuMat& left,
@@ -219,7 +219,7 @@ template void aggregateUpright2DownleftPath<64u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 template void aggregateUpright2DownleftPath<128u>(
     const GpuMat& left,
@@ -227,7 +227,7 @@ template void aggregateUpright2DownleftPath<128u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 template void aggregateDownright2UpleftPath<64u>(
     const GpuMat& left,
@@ -235,7 +235,7 @@ template void aggregateDownright2UpleftPath<64u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 template void aggregateDownright2UpleftPath<128u>(
     const GpuMat& left,
@@ -243,7 +243,7 @@ template void aggregateDownright2UpleftPath<128u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 template void aggregateDownleft2UprightPath<64u>(
     const GpuMat& left,
@@ -251,7 +251,7 @@ template void aggregateDownleft2UprightPath<64u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 template void aggregateDownleft2UprightPath<128u>(
     const GpuMat& left,
@@ -259,7 +259,7 @@ template void aggregateDownleft2UprightPath<128u>(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 }
 }}}

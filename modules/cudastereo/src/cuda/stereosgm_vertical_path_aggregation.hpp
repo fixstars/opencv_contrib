@@ -31,7 +31,7 @@ void aggregateUp2DownPath(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 template <unsigned int MAX_DISPARITY>
 void aggregateDown2UpPath(
@@ -40,7 +40,7 @@ void aggregateDown2UpPath(
     GpuMat& dest,
 	unsigned int p1,
 	unsigned int p2,
-	Stream stream);
+	Stream& stream);
 
 }
 }}}
