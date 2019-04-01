@@ -170,7 +170,6 @@ void aggregateLeft2RightPath(
 	Stream& _stream)
 {
     CV_Assert(left.size() == right.size());
-    CV_Assert(left.size() == dest.size());
     CV_Assert(left.type() == right.type());
     CV_Assert(left.type() == CV_32SC1);
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
@@ -194,7 +193,6 @@ void aggregateRight2LeftPath(
 	Stream& _stream)
 {
     CV_Assert(left.size() == right.size());
-    CV_Assert(left.size() == dest.size());
     CV_Assert(left.type() == right.type());
     CV_Assert(left.type() == CV_32SC1);
 	static const unsigned int SUBGROUP_SIZE = MAX_DISPARITY / DP_BLOCK_SIZE;
