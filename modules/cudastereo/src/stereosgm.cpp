@@ -56,7 +56,10 @@ namespace cv { namespace cuda { namespace device
     namespace stereosgm
     {
         void censusTransform(const GpuMat& src, GpuMat& dest, cv::cuda::Stream& stream);
-        // TODO
+        template <size_t MAX_DISPARITY, size_t NUM_PATHS>
+        void pathAggregation(const GpuMat& left, const GpuMat& right, GpuMat& dest, int p1, int p2, Stream& stream);
+        template <size_t MAX_DISPARITY>
+        void winnerTakesAll(const GpuMat& src, GpuMat& left, GpuMat& right, float uniqueness, bool subpixel, cv::cuda::Stream& stream);
     }
 }}}
 
@@ -73,6 +76,7 @@ namespace
 
     class StereoSGMImpl : public cuda::StereoSGM
     {
+        static constexpr unsigned int NUM_PATHS = 8u;
     public:
         StereoSGMImpl(int numDisparities, int P1, int P2, int uniquenessRatio);
 
@@ -123,7 +127,42 @@ namespace
     void StereoSGMImpl::compute(InputArray _left, InputArray _right, OutputArray _disparity, Stream& _stream)
     {
         using namespace ::cv::cuda::device::stereosgm;
-        // TODO
+
+        GpuMat left = _left.getGpuMat();
+        GpuMat right = _right.getGpuMat();
+        const Size size = left.size();
+
+        CV_Assert(left.type() == CV_8UC1 || left.type() == CV_16UC1);
+        CV_Assert(size == right.size() && left.type() == right.type());
+
+        _disparity.create(size, CV_16UC1);
+        GpuMat disparity = _disparity.getGpuMat();
+
+        GpuMat censusedLeft, censusedRight;
+        censusedLeft.create(size, CV_32SC1);
+        censusedRight.create(size, CV_32SC1);
+        censusTransform(left, censusedLeft, _stream);
+        censusTransform(left, censusedRight, _stream);
+
+        GpuMat aggregated;
+        GpuMat disparityRight;
+        aggregated.create(Size(size.width * size.height * params.numDisparities * NUM_PATHS, 1), CV_8UC1);
+        disparityRight.create(size, CV_16UC1);
+
+        switch (params.numDisparities)
+        {
+        case 64:
+            pathAggregation<64, NUM_PATHS>(censusedLeft, censusedRight, aggregated, params.P1, params.P2, _stream);
+            winnerTakesAll<64>(aggregated, disparity, disparityRight, (float)(100 - params.uniquenessRatio) / 100, true, _stream);
+            break;
+        case 128:
+            pathAggregation<128, NUM_PATHS>(censusedLeft, censusedRight, aggregated, params.P1, params.P2, _stream);
+            winnerTakesAll<128>(aggregated, disparity, disparityRight, (float)(100 - params.uniquenessRatio) / 100, true, _stream);
+            break;
+        default:
+            // TODO throw CV Exception
+            break;
+        }
     }
 }
 
