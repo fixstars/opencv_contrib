@@ -34,7 +34,7 @@ namespace cv { namespace cuda { namespace device
         template <typename T>
         __global__ void census_transform_kernel(
             PtrStepSz<T> src,
-            PtrStep<uint32_t> dest)
+            PtrStep<int32_t> dest)
         {
             using pixel_type = T;
             static const int SMEM_BUFFER_SIZE = WINDOW_HEIGHT + 1;
@@ -108,7 +108,7 @@ namespace cv { namespace cuda { namespace device
         void censusTransform(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dest, cv::cuda::Stream& _stream)
         {
             CV_Assert(src.size() == dest.size());
-            CV_Assert(src.type() == CV_8UC1);
+            CV_Assert(src.type() == CV_8UC1 || src.type() == CV_16UC1);
             const int width_per_block = BLOCK_SIZE - WINDOW_WIDTH + 1;
             const int height_per_block = LINES_PER_BLOCK;
             const dim3 gdim(
@@ -116,7 +116,15 @@ namespace cv { namespace cuda { namespace device
                 (src.rows + height_per_block - 1) / height_per_block);
             const dim3 bdim(BLOCK_SIZE);
             cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
-            census_transform_kernel<int32_t><<<gdim, bdim, 0, stream>>>(src, dest);
+            switch (src.type())
+            {
+            case CV_8UC1:
+                census_transform_kernel<uint8_t><<<gdim, bdim, 0, stream>>>(src, dest);
+                break;
+            case CV_16UC1:
+                census_transform_kernel<uint16_t><<<gdim, bdim, 0, stream>>>(src, dest);
+                break;
+            }
         }
     }
 }}}
