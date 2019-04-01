@@ -251,6 +251,8 @@ CV_EXPORTS_W Ptr<cuda::StereoConstantSpaceBP>
 class CV_EXPORTS_W StereoSGM : public cv::StereoMatcher
 {
 public:
+    using cv::StereoMatcher::compute;
+
     virtual void compute(InputArray left, InputArray right, OutputArray disparity, Stream& stream) = 0;
 
     virtual int getP1() const = 0;
