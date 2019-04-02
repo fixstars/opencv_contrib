@@ -39,21 +39,64 @@
 // the use of this software, even if advised of the possibility of such damage.
 //
 //M*/
-#ifndef __OPENCV_TEST_PRECOMP_HPP__
-#define __OPENCV_TEST_PRECOMP_HPP__
 
-#include "opencv2/ts.hpp"
-#include "opencv2/ts/cuda_test.hpp"
+#include "test_precomp.hpp"
 
-#include "opencv2/cudastereo.hpp"
-#include "opencv2/calib3d.hpp"
+#ifdef HAVE_CUDA
 
-#include "cvconfig.h"
+namespace opencv_test { namespace {
 
-#include "../src/cuda/stereosgm_census_transform.hpp"
-#include "../src/cuda/stereosgm_horizontal_path_aggregation.hpp"
-#include "../src/cuda/stereosgm_vertical_path_aggregation.hpp"
-#include "../src/cuda/stereosgm_oblique_path_aggregation.hpp"
-#include "../src/cuda/stereosgm_winner_takes_all.hpp"
+    void census_transform(const cv::Mat& src, cv::Mat& dst)
+    {
+        const int hor = 9 / 2, ver = 7 / 2;
+        dst.create(src.size(), CV_32SC1);
+        dst = 0;
+        for (int y = ver; y < static_cast<int>(src.rows) - ver; ++y) {
+            for (int x = hor; x < static_cast<int>(src.cols) - hor; ++x) {
+                const auto c = src.at<uint8_t>(y, x);
+                int32_t value = 0;
+                for (int dy = -ver; dy <= 0; ++dy) {
+                    for (int dx = -hor; dx <= (dy == 0 ? -1 : hor); ++dx) {
+                        const auto a = src.at<uint8_t>(y + dy, x + dx);
+                        const auto b = src.at<uint8_t>(y - dy, x - dx);
+                        value <<= 1;
+                        if (a > b) { value |= 1; }
+                    }
+                }
+                dst.at<int32_t>(y, x) = value;
+            }
+        }
+    }
 
-#endif
+    struct StereoSGM : testing::TestWithParam<cv::cuda::DeviceInfo>
+    {
+        cv::cuda::DeviceInfo devInfo;
+
+        virtual void SetUp()
+        {
+            devInfo = GetParam();
+
+            cv::cuda::setDevice(devInfo.deviceID());
+        }
+    };
+
+    CUDA_TEST_P(StereoSGM, CensusTransform)
+    {
+        cv::Mat src = readImage("stereobm/aloe-L.png", cv::IMREAD_GRAYSCALE);
+        cv::Mat expect;
+        census_transform(src, expect);
+
+        cv::cuda::GpuMat g_src, g_dst;
+        g_src.upload(src);
+        g_dst.create(src.size(), CV_32SC1);
+        cv::cuda::device::stereosgm::censusTransform(g_src, g_dst, cv::cuda::Stream::Null());
+
+        cv::Mat actual;
+        g_dst.download(actual);
+
+        EXPECT_MAT_NEAR(expect, actual, 1e-4);
+    }
+
+    INSTANTIATE_TEST_CASE_P(CUDA_StereoSGM_funcs, StereoSGM, ALL_DEVICES);
+}} // namespace
+#endif // HAVE_CUDA
