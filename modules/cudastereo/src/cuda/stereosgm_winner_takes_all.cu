@@ -34,9 +34,9 @@ static constexpr unsigned int BLOCK_SIZE = WARPS_PER_BLOCK * WARP_SIZE;
 
 
 __device__ inline void update_top2(uint32_t& v0, uint32_t& v1, uint32_t x){
-    const uint32_t y = umax(x, v0);
-    v0 = umin(x, v0);
-    v1 = umin(y, v1);
+    const uint32_t y = ::max(x, v0);
+    v0 = ::min(x, v0);
+    v1 = ::min(y, v1);
 }
 
 struct Top2 {
@@ -262,7 +262,7 @@ __global__ void winner_takes_all_kernel(
         const unsigned int k = lane_id * REDUCTION_PER_THREAD + i;
         const int p = static_cast<int>(((width - k) & ~(MAX_DISPARITY - 1)) + k);
         if(p < width){
-            right_dest[p] = compute_disparity_normal<MAX_DISPARITY>(right_top2[i], uniqueness);
+            right_dest(0, p) = compute_disparity_normal<MAX_DISPARITY>(right_top2[i], uniqueness);
         }
     }
 }
@@ -277,7 +277,7 @@ void winnerTakesAll(const GpuMat& src, GpuMat& left, GpuMat& right, float unique
     CV_Assert(left.type() == right.type());
     CV_Assert(src.type() == CV_8UC1);
     const int gdim =
-        (src.rows + WARPS_PER_BLOCK - 1) / WARPS_PER_BLOCK;
+        (size.height + WARPS_PER_BLOCK - 1) / WARPS_PER_BLOCK;
     const int bdim = BLOCK_SIZE;
     cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
     if (subpixel) {
