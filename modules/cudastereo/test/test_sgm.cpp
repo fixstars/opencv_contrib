@@ -203,40 +203,43 @@ namespace opencv_test { namespace {
 
             cv::cuda::setDevice(devInfo.deviceID());
         }
+
+        template<typename T>
+        void test_path_aggregation(T func, int dx, int dy)
+        {
+            cv::Mat left_image = randomMat(size, CV_32SC1, 0.0, static_cast<double>(std::numeric_limits<int32_t>::max()));
+            cv::Mat right_image = randomMat(size, CV_32SC1, 0.0, static_cast<double>(std::numeric_limits<int32_t>::max()));
+            cv::Mat dst_gold;
+            path_aggregation(left_image, right_image, dst_gold, DISPARITY, P1, P2, dx, dy);
+
+            cv::cuda::GpuMat g_dst;
+            g_dst.create(cv::Size(left_image.cols * left_image.rows * DISPARITY, 1), CV_8UC1);
+            func(loadMat(left_image, useRoi), loadMat(right_image, useRoi), g_dst, P1, P2, cv::cuda::Stream::Null());
+
+            cv::Mat dst;
+            g_dst.download(dst);
+
+            EXPECT_MAT_NEAR(dst_gold, dst, 0);
+        }
     };
 
     CUDA_TEST_P(StereoSGM_PathAggregation, RandomLeft2Right)
     {
-        cv::Mat left_image = randomMat(size, CV_32SC1, 0.0, static_cast<double>(std::numeric_limits<int32_t>::max()));
-        cv::Mat right_image = randomMat(size, CV_32SC1, 0.0, static_cast<double>(std::numeric_limits<int32_t>::max()));
-        cv::Mat dst_gold;
-        path_aggregation(left_image, right_image, dst_gold, DISPARITY, P1, P2, 1, 0);
-
-        cv::cuda::GpuMat g_dst;
-        g_dst.create(cv::Size(left_image.cols * left_image.rows * DISPARITY, 1), CV_8UC1);
-        cv::cuda::device::stereosgm::aggregateLeft2RightPath<DISPARITY>(loadMat(left_image, useRoi), loadMat(right_image, useRoi), g_dst, P1, P2, cv::cuda::Stream::Null());
-
-        cv::Mat dst;
-        g_dst.download(dst);
-
-        EXPECT_MAT_NEAR(dst_gold, dst, 0);
+        test_path_aggregation(cv::cuda::device::stereosgm::aggregateLeft2RightPath<DISPARITY>, 1, 0);
     }
 
     CUDA_TEST_P(StereoSGM_PathAggregation, RandomRight2Left)
     {
-        cv::Mat left_image = randomMat(size, CV_32SC1, 0.0, static_cast<double>(std::numeric_limits<int32_t>::max()));
-        cv::Mat right_image = randomMat(size, CV_32SC1, 0.0, static_cast<double>(std::numeric_limits<int32_t>::max()));
-        cv::Mat dst_gold;
-        path_aggregation(left_image, right_image, dst_gold, DISPARITY, P1, P2, -1, 0);
+        test_path_aggregation(cv::cuda::device::stereosgm::aggregateRight2LeftPath<DISPARITY>, -1, 0);
+    }
 
-        cv::cuda::GpuMat g_dst;
-        g_dst.create(cv::Size(left_image.cols * left_image.rows * DISPARITY, 1), CV_8UC1);
-        cv::cuda::device::stereosgm::aggregateRight2LeftPath<DISPARITY>(loadMat(left_image, useRoi), loadMat(right_image, useRoi), g_dst, P1, P2, cv::cuda::Stream::Null());
 
-        cv::Mat dst;
-        g_dst.download(dst);
+    }
 
-        EXPECT_MAT_NEAR(dst_gold, dst, 0);
+    {
+
+
+
     }
 
     INSTANTIATE_TEST_CASE_P(CUDA_StereoSGM_funcs, StereoSGM_PathAggregation, testing::Combine(
