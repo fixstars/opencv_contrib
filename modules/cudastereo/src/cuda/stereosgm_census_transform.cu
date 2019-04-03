@@ -78,7 +78,7 @@ namespace cv { namespace cuda { namespace device
                     if(half_kw <= x && x < src.cols - half_kw && half_kh <= y && y < src.rows - half_kh){
                         const int smem_x = tid;
                         const int smem_y = (half_kh + i) % SMEM_BUFFER_SIZE;
-                        uint32_t f = 0;
+                        int32_t f = 0;
                         for(int dy = -half_kh; dy < 0; ++dy){
                             const int smem_y1 = (smem_y + dy + SMEM_BUFFER_SIZE) % SMEM_BUFFER_SIZE;
                             const int smem_y2 = (smem_y - dy + SMEM_BUFFER_SIZE) % SMEM_BUFFER_SIZE;
