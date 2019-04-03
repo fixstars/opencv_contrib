@@ -23,7 +23,7 @@ namespace cv { namespace cuda { namespace device
 {
     namespace stereosgm
     {
-        void censusTransform(const GpuMat& src, GpuMat& dest, cv::cuda::Stream& stream);
+        CV_EXPORTS_W void censusTransform(const GpuMat& src, GpuMat& dest, cv::cuda::Stream& stream);
     }
 }}}
 
