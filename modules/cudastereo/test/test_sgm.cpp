@@ -41,6 +41,7 @@
 //M*/
 
 #include "test_precomp.hpp"
+#include <limits>
 
 #ifdef HAVE_CUDA
 
@@ -68,19 +69,79 @@ namespace opencv_test { namespace {
         }
     }
 
-    struct StereoSGM : testing::TestWithParam<cv::cuda::DeviceInfo>
+    PARAM_TEST_CASE(CensusTransformImage, cv::cuda::DeviceInfo, std::string, UseRoi)
     {
         cv::cuda::DeviceInfo devInfo;
+        std::string path;
+        bool useRoi;
 
         virtual void SetUp()
         {
-            devInfo = GetParam();
+            devInfo = GET_PARAM(0);
+            path = GET_PARAM(1);
+            useRoi = GET_PARAM(2);
 
             cv::cuda::setDevice(devInfo.deviceID());
         }
     };
 
-    CUDA_TEST_P(StereoSGM, CensusTransform)
+    CUDA_TEST_P(CensusTransformImage, CensusTransformImageTest)
+    {
+        cv::Mat image = readImage(path, cv::IMREAD_GRAYSCALE);
+        cv::Mat dst_gold;
+        census_transform(image, dst_gold);
+
+        cv::cuda::GpuMat g_dst;
+        g_dst.create(image.size(), CV_32SC1);
+        cv::cuda::device::stereosgm::censusTransform(loadMat(image, useRoi), g_dst, cv::cuda::Stream::Null());
+
+        cv::Mat dst;
+        g_dst.download(dst);
+
+        EXPECT_MAT_NEAR(dst_gold, dst, 0);
+    }
+
+    INSTANTIATE_TEST_CASE_P(CUDA_StereoSGM_funcs, CensusTransformImage, testing::Combine(
+        ALL_DEVICES,
+        testing::Values("stereobm/aloe-L.png", "stereobm/aloe-R.png"),
+        WHOLE_SUBMAT));
+
+    PARAM_TEST_CASE(CensusTransformRandom, cv::cuda::DeviceInfo, cv::Size, UseRoi)
+    {
+        cv::cuda::DeviceInfo devInfo;
+        cv::Size size;
+        bool useRoi;
+
+        virtual void SetUp()
+        {
+            devInfo = GET_PARAM(0);
+            size = GET_PARAM(1);
+            useRoi = GET_PARAM(2);
+
+            cv::cuda::setDevice(devInfo.deviceID());
+        }
+    };
+
+    CUDA_TEST_P(CensusTransformRandom, CensusTransformRandomTest)
+    {
+        cv::Mat image = randomMat(size, CV_8UC1);
+        cv::Mat dst_gold;
+        census_transform(image, dst_gold);
+
+        cv::cuda::GpuMat g_dst;
+        g_dst.create(image.size(), CV_32SC1);
+        cv::cuda::device::stereosgm::censusTransform(loadMat(image, useRoi), g_dst, cv::cuda::Stream::Null());
+
+        cv::Mat dst;
+        g_dst.download(dst);
+
+        EXPECT_MAT_NEAR(dst_gold, dst, 0);
+    }
+
+    INSTANTIATE_TEST_CASE_P(CUDA_StereoSGM_funcs, CensusTransformRandom, testing::Combine(
+        ALL_DEVICES,
+        DIFFERENT_SIZES,
+        WHOLE_SUBMAT));
     {
         cv::Mat src = readImage("stereobm/aloe-L.png", cv::IMREAD_GRAYSCALE);
         cv::Mat expect;
