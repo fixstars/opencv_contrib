@@ -157,7 +157,7 @@ void aggregateDown2UpPath(
 }
 
 
-template void aggregateUp2DownPath<64u>(
+template CV_EXPORTS_W void aggregateUp2DownPath<64u>(
     const GpuMat& left,
     const GpuMat& right,
     GpuMat& dest,
@@ -165,7 +165,7 @@ template void aggregateUp2DownPath<64u>(
 	unsigned int p2,
 	Stream& stream);
 
-template void aggregateUp2DownPath<128u>(
+template CV_EXPORTS_W void aggregateUp2DownPath<128u>(
     const GpuMat& left,
     const GpuMat& right,
     GpuMat& dest,
@@ -173,7 +173,7 @@ template void aggregateUp2DownPath<128u>(
 	unsigned int p2,
 	Stream& stream);
 
-template void aggregateDown2UpPath<64u>(
+template CV_EXPORTS_W void aggregateDown2UpPath<64u>(
     const GpuMat& left,
     const GpuMat& right,
     GpuMat& dest,
@@ -181,7 +181,7 @@ template void aggregateDown2UpPath<64u>(
 	unsigned int p2,
 	Stream& stream);
 
-template void aggregateDown2UpPath<128u>(
+template CV_EXPORTS_W void aggregateDown2UpPath<128u>(
     const GpuMat& left,
     const GpuMat& right,
     GpuMat& dest,

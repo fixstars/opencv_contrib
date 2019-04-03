@@ -233,13 +233,34 @@ namespace opencv_test { namespace {
         test_path_aggregation(cv::cuda::device::stereosgm::aggregateRight2LeftPath<DISPARITY>, -1, 0);
     }
 
-
+    CUDA_TEST_P(StereoSGM_PathAggregation, RandomUp2Down)
+    {
+        test_path_aggregation(cv::cuda::device::stereosgm::aggregateUp2DownPath<DISPARITY>, 0, 1);
     }
 
+    CUDA_TEST_P(StereoSGM_PathAggregation, RandomDown2Up)
     {
+        test_path_aggregation(cv::cuda::device::stereosgm::aggregateDown2UpPath<DISPARITY>, 0, -1);
+    }
 
+    CUDA_TEST_P(StereoSGM_PathAggregation, RandomUpLeft2DownRight)
+    {
+        test_path_aggregation(cv::cuda::device::stereosgm::aggregateUpleft2DownrightPath<DISPARITY>, 1, 1);
+    }
 
+    CUDA_TEST_P(StereoSGM_PathAggregation, RandomUpRight2DownLeft)
+    {
+        test_path_aggregation(cv::cuda::device::stereosgm::aggregateUpright2DownleftPath<DISPARITY>, -1, 1);
+    }
 
+    CUDA_TEST_P(StereoSGM_PathAggregation, RandomDownRight2UpLeft)
+    {
+        test_path_aggregation(cv::cuda::device::stereosgm::aggregateDownright2UpleftPath<DISPARITY>, -1, -1);
+    }
+
+    CUDA_TEST_P(StereoSGM_PathAggregation, RandomDownLeft2UpRight)
+    {
+        test_path_aggregation(cv::cuda::device::stereosgm::aggregateDownleft2UprightPath<DISPARITY>, 1, -1);
     }
 
     INSTANTIATE_TEST_CASE_P(CUDA_StereoSGM_funcs, StereoSGM_PathAggregation, testing::Combine(
