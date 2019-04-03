@@ -142,7 +142,7 @@ namespace
         censusedLeft.create(size, CV_32SC1);
         censusedRight.create(size, CV_32SC1);
         censusTransform(left, censusedLeft, _stream);
-        censusTransform(left, censusedRight, _stream);
+        censusTransform(right, censusedRight, _stream);
 
         GpuMat aggregated;
         GpuMat disparityRight;
