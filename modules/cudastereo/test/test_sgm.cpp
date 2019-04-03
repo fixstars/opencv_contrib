@@ -267,5 +267,100 @@ namespace opencv_test { namespace {
         ALL_DEVICES,
         DIFFERENT_SIZES,
         WHOLE_SUBMAT));
+
+
+    static constexpr size_t NUM_PATHS = 8;
+
+    void winner_takes_all_left(
+        const cv::Mat& src,
+        cv::Mat& dst,
+        size_t width, size_t height, size_t disparity,
+        float uniqueness, bool subpixel)
+    {
+        dst.create(cv::Size(width, height), CV_16UC1);
+        for (size_t i = 0; i < height; ++i) {
+            for (size_t j = 0; j < width; ++j) {
+                std::vector<std::pair<int, int>> v;
+                for (size_t k = 0; k < disparity; ++k) {
+                    int cost_sum = 0;
+                    for (size_t p = 0; p < NUM_PATHS; ++p) {
+                        cost_sum += static_cast<int>(src.at<uint8_t>(0,
+                            p * disparity * width * height +
+                                i * disparity * width +
+                                j * disparity +
+                                k));
+                    }
+                    v.emplace_back(cost_sum, static_cast<int>(k));
+                }
+                auto w = v;
+                sort(v.begin(), v.end());
+                if (v.size() < 2) {
+                    dst.at<uint16_t>(i, j) = 0;
+                }
+                else
+                {
+                    const int cost0 = v[0].first;
+                    const int cost1 = v[1].first;
+                    const int disp0 = v[0].second;
+                    const int disp1 = v[1].second;
+                    uint16_t disp = 0;
+                    if (cost1 * uniqueness < cost0 && abs(disp0 - disp1) > 1) {
+                        dst = 0;
+                    }
+                    else {
+                        disp = disp0;
+                        if (subpixel) {
+                            disp <<= cv::StereoMatcher::DISP_SHIFT;
+                            if (0 < disp0 && disp0 < static_cast<int>(disparity) - 1) {
+                                const int left = w[disp0 - 1].first;
+                                const int right = w[disp0 + 1].first;
+                                const int numer = left - right;
+                                const int denom = left - 2 * cost0 + right;
+                                disp += ((numer << cv::StereoMatcher::DISP_SHIFT) + denom) / (2 * denom);
+                            }
+                        }
+                    }
+                    dst.at<uint16_t>(i, j) = disp;
+                }
+            }
+        }
+    }
+
+    PARAM_TEST_CASE(StereoSGM_WinnerTakesAll, cv::cuda::DeviceInfo, cv::Size)
+    {
+        cv::cuda::DeviceInfo devInfo;
+        cv::Size size;
+
+        virtual void SetUp()
+        {
+            devInfo = GET_PARAM(0);
+            size = GET_PARAM(1);
+
+            cv::cuda::setDevice(devInfo.deviceID());
+        }
+    };
+
+    CUDA_TEST_P(StereoSGM_WinnerTakesAll, RandomLeft)
+    {
+        cv::Mat aggregated = randomMat(cv::Size(size.width * size.height * DISPARITY * NUM_PATHS, 1), CV_8UC1, 0.0, static_cast<double>(std::numeric_limits<uint8_t>::max()));
+        cv::Mat dst_gold;
+        winner_takes_all_left(aggregated, dst_gold, size.width, size.height, DISPARITY, 0.95f, true);
+
+        cv::cuda::GpuMat g_src, g_dst, g_dst_right;
+        g_src.upload(aggregated);
+        g_dst.create(size, CV_16UC1);
+        g_dst_right.create(size, CV_16UC1);
+        cv::cuda::device::stereosgm::winnerTakesAll<DISPARITY>(g_src, g_dst, g_dst_right, 0.95f, true, cv::cuda::Stream::Null());
+
+        cv::Mat dst;
+        g_dst.download(dst);
+
+        EXPECT_MAT_NEAR(dst_gold, dst, 0);
+    }
+
+    INSTANTIATE_TEST_CASE_P(CUDA_StereoSGM_funcs, StereoSGM_WinnerTakesAll, testing::Combine(
+        ALL_DEVICES,
+        DIFFERENT_SIZES));
+
 }} // namespace
 #endif // HAVE_CUDA

@@ -288,7 +288,7 @@ void winnerTakesAll(const GpuMat& src, GpuMat& left, GpuMat& right, float unique
             src, left, right, size.width, size.height, uniqueness);
     }
 }
-template void winnerTakesAll< 64>(const GpuMat&, GpuMat&, GpuMat&, float, bool, cv::cuda::Stream&);
-template void winnerTakesAll<128>(const GpuMat&, GpuMat&, GpuMat&, float, bool, cv::cuda::Stream&);
+template CV_EXPORTS_W void winnerTakesAll< 64>(const GpuMat&, GpuMat&, GpuMat&, float, bool, cv::cuda::Stream&);
+template CV_EXPORTS_W void winnerTakesAll<128>(const GpuMat&, GpuMat&, GpuMat&, float, bool, cv::cuda::Stream&);
 }
 }}}
