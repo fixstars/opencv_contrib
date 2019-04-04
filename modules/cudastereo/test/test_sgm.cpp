@@ -305,7 +305,7 @@ namespace opencv_test { namespace {
                     const int disp1 = v[1].second;
                     uint16_t disp = 0;
                     if (cost1 * uniqueness < cost0 && abs(disp0 - disp1) > 1) {
-                        dst = 0;
+                        disp = 0;
                     }
                     else {
                         disp = disp0;
