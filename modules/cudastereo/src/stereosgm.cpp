@@ -119,6 +119,9 @@ namespace
 
     private:
         StereoSGMParams params;
+        GpuMat censused_left, censused_right;
+        GpuMat aggregated;
+        GpuMat right_disp_dummy;
     };
 
     StereoSGMImpl::StereoSGMImpl(int numDisparities, int P1, int P2, int uniquenessRatio)
@@ -152,11 +155,10 @@ namespace
         GpuMat left_disp = _left_disp.getGpuMat();
         GpuMat right_disp = _right_disp.getGpuMat();
 
-        GpuMat censusedLeft, censusedRight;
-        censusedLeft.create(size, CV_32SC1);
-        censusedRight.create(size, CV_32SC1);
-        censusTransform(left, censusedLeft, _stream);
-        censusTransform(right, censusedRight, _stream);
+        censused_left.create(size, CV_32SC1);
+        censused_right.create(size, CV_32SC1);
+        censusTransform(left, censused_left, _stream);
+        censusTransform(right, censused_right, _stream);
 
         GpuMat aggregated;
         GpuMat disparityRight;
@@ -166,11 +168,11 @@ namespace
         switch (params.numDisparities)
         {
         case 64:
-            pathAggregation<64, NUM_PATHS>(censusedLeft, censusedRight, aggregated, params.P1, params.P2, _stream);
+            pathAggregation<64, NUM_PATHS>(censused_left, censused_right, aggregated, params.P1, params.P2, _stream);
             winnerTakesAll<64>(aggregated, left_disp, right_disp, (float)(100 - params.uniquenessRatio) / 100, true, _stream);
             break;
         case 128:
-            pathAggregation<128, NUM_PATHS>(censusedLeft, censusedRight, aggregated, params.P1, params.P2, _stream);
+            pathAggregation<128, NUM_PATHS>(censused_left, censused_right, aggregated, params.P1, params.P2, _stream);
             winnerTakesAll<128>(aggregated, left_disp, right_disp, (float)(100 - params.uniquenessRatio) / 100, true, _stream);
             break;
         default:
