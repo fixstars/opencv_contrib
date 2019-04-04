@@ -342,7 +342,7 @@ namespace opencv_test { namespace {
 
     CUDA_TEST_P(StereoSGM_WinnerTakesAll, RandomLeft)
     {
-        cv::Mat aggregated = randomMat(cv::Size(size.width * size.height * DISPARITY * NUM_PATHS, 1), CV_8UC1, 0.0, static_cast<double>(std::numeric_limits<uint8_t>::max()));
+        cv::Mat aggregated = randomMat(cv::Size(size.width * size.height * DISPARITY * NUM_PATHS, 1), CV_8UC1, 0.0, 32.0);
         cv::Mat dst_gold;
         winner_takes_all_left(aggregated, dst_gold, size.width, size.height, DISPARITY, 0.95f, true);
 
