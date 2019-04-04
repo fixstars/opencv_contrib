@@ -74,41 +74,48 @@ namespace
         StereoSGMParams(int numDisparities = 128, int P1 = 10, int P2 = 120, int uniquenessRatio = 5) : numDisparities(numDisparities), P1(P1), P2(P2), uniquenessRatio(uniquenessRatio) {}
     };
 
-    class StereoSGMImpl : public cuda::StereoSGM
+    class StereoSGMImpl CV_FINAL: public cuda::StereoSGM
     {
         static constexpr unsigned int NUM_PATHS = 8u;
     public:
         StereoSGMImpl(int numDisparities, int P1, int P2, int uniquenessRatio);
 
-        void compute(InputArray left, InputArray right, OutputArray disparity);
-        void compute(InputArray left, InputArray right, OutputArray disparity, Stream& stream);
+        virtual void compute(InputArray left, InputArray right, OutputArray disparity) CV_OVERRIDE;
+        virtual void compute(InputArray left, InputArray right, OutputArray disparity, Stream& stream) CV_OVERRIDE;
+        virtual void compute(InputArray left, InputArray right, OutputArray left_disp, OutputArray right_disp, Stream& stream) CV_OVERRIDE;
 
-        int getBlockSize() const { return 1; }
-        void setBlockSize(int /*blockSize*/) {}
+        virtual int getBlockSize() const CV_OVERRIDE { return 1; }
+        virtual void setBlockSize(int /*blockSize*/) CV_OVERRIDE {}
 
-        int getDisp12MaxDiff() const { return 0; }
-        void setDisp12MaxDiff(int /*disp12MaxDiff*/) {}
+        virtual int getDisp12MaxDiff() const CV_OVERRIDE { return -1; }
+        virtual void setDisp12MaxDiff(int /*disp12MaxDiff*/) CV_OVERRIDE {}
 
-        int getMinDisparity() const { return 0; }
-        void setMinDisparity(int /*minDisparity*/) {}
+        virtual int getMinDisparity() const CV_OVERRIDE { return 1; }
+        virtual void setMinDisparity(int /*minDisparity*/) CV_OVERRIDE {}
 
-        int getNumDisparities() const { return params.numDisparities; }
-        void setNumDisparities(int numDisparities) { params.numDisparities = numDisparities; }
+        virtual int getNumDisparities() const CV_OVERRIDE { return params.numDisparities; }
+        virtual void setNumDisparities(int numDisparities) CV_OVERRIDE { params.numDisparities = numDisparities; }
 
-        int getSpeckleWindowSize() const { return 0; }
-        void setSpeckleWindowSize(int /*speckleWindowSize*/) {}
+        virtual int getSpeckleWindowSize() const CV_OVERRIDE { return 0; }
+        virtual void setSpeckleWindowSize(int /*speckleWindowSize*/) CV_OVERRIDE {}
 
-        int getSpeckleRange() const { return 0; }
-        void setSpeckleRange(int /*speckleRange*/) {}
+        virtual int getSpeckleRange() const CV_OVERRIDE { return 0; }
+        virtual void setSpeckleRange(int /*speckleRange*/) CV_OVERRIDE {}
 
-        int getP1() const { return params.P1; }
-        void setP1(int P1) { params.P1 = P1; }
+        virtual int getP1() const CV_OVERRIDE { return params.P1; }
+        virtual void setP1(int P1) CV_OVERRIDE { params.P1 = P1; }
 
-        int getP2() const { return params.P2; }
-        void setP2(int P2) { params.P2 = P2; }
+        virtual int getP2() const CV_OVERRIDE { return params.P2; }
+        virtual void setP2(int P2) CV_OVERRIDE { params.P2 = P2; }
 
-        int getUniquenessRatio() const { return params.uniquenessRatio; }
-        void setUniquenessRatio(int uniquenessRatio) { params.uniquenessRatio = uniquenessRatio; }
+        virtual int getUniquenessRatio() const CV_OVERRIDE { return params.uniquenessRatio; }
+        virtual void setUniquenessRatio(int uniquenessRatio) CV_OVERRIDE { params.uniquenessRatio = uniquenessRatio; }
+
+        virtual int getMode() const CV_OVERRIDE { return -1; }
+        virtual void setMode(int /*mode*/) CV_OVERRIDE {}
+
+        virtual int getPreFilterCap() const CV_OVERRIDE { return -1; }
+        virtual void setPreFilterCap(int /*preFilterCap*/) CV_OVERRIDE {}
 
     private:
         StereoSGMParams params;
@@ -124,7 +131,12 @@ namespace
         compute(left, right, disparity, Stream::Null());
     }
 
-    void StereoSGMImpl::compute(InputArray _left, InputArray _right, OutputArray _disparity, Stream& _stream)
+    void StereoSGMImpl::compute(InputArray left, InputArray right, OutputArray disparity, Stream& stream)
+    {
+        compute(left, right, disparity, right_disp_dummy, stream);
+    }
+
+    void StereoSGMImpl::compute(InputArray _left, InputArray _right, OutputArray _left_disp, OutputArray _right_disp, Stream& _stream)
     {
         using namespace ::cv::cuda::device::stereosgm;
 
@@ -135,8 +147,10 @@ namespace
         CV_Assert(left.type() == CV_8UC1 || left.type() == CV_16UC1);
         CV_Assert(size == right.size() && left.type() == right.type());
 
-        _disparity.create(size, CV_16UC1);
-        GpuMat disparity = _disparity.getGpuMat();
+        _left_disp.create(size, CV_16UC1);
+        _right_disp.create(size, CV_16UC1);
+        GpuMat left_disp = _left_disp.getGpuMat();
+        GpuMat right_disp = _right_disp.getGpuMat();
 
         GpuMat censusedLeft, censusedRight;
         censusedLeft.create(size, CV_32SC1);
@@ -153,11 +167,11 @@ namespace
         {
         case 64:
             pathAggregation<64, NUM_PATHS>(censusedLeft, censusedRight, aggregated, params.P1, params.P2, _stream);
-            winnerTakesAll<64>(aggregated, disparity, disparityRight, (float)(100 - params.uniquenessRatio) / 100, true, _stream);
+            winnerTakesAll<64>(aggregated, left_disp, right_disp, (float)(100 - params.uniquenessRatio) / 100, true, _stream);
             break;
         case 128:
             pathAggregation<128, NUM_PATHS>(censusedLeft, censusedRight, aggregated, params.P1, params.P2, _stream);
-            winnerTakesAll<128>(aggregated, disparity, disparityRight, (float)(100 - params.uniquenessRatio) / 100, true, _stream);
+            winnerTakesAll<128>(aggregated, left_disp, right_disp, (float)(100 - params.uniquenessRatio) / 100, true, _stream);
             break;
         default:
             // TODO throw CV Exception

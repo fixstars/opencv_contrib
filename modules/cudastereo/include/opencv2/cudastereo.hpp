@@ -248,21 +248,13 @@ CV_EXPORTS_W Ptr<cuda::StereoConstantSpaceBP>
 
 @sa StereoSGM
 */
-class CV_EXPORTS_W StereoSGM : public cv::StereoMatcher
+class CV_EXPORTS_W StereoSGM : public cv::StereoSGBM
 {
 public:
     using cv::StereoMatcher::compute;
 
-    virtual void compute(InputArray left, InputArray right, OutputArray disparity, Stream& stream) = 0;
-
-    virtual int getP1() const = 0;
-    virtual void setP1(int P1) = 0;
-
-    virtual int getP2() const = 0;
-    virtual void setP2(int P2) = 0;
-
-    virtual int getUniquenessRatio() const = 0;
-    virtual void setUniquenessRatio(int uniquenessRatio) = 0;
+    CV_WRAP virtual void compute(InputArray left, InputArray right, OutputArray disparity, Stream& stream) = 0;
+    CV_WRAP virtual void compute(InputArray left, InputArray right, OutputArray left_disp, OutputArray right_disp, Stream& stream) = 0;
 };
 
 /** @brief Creates StereoSGM object.

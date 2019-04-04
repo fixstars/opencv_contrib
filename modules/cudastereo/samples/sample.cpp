@@ -77,7 +77,6 @@ int main(int argc, char* argv[]) {
     int key = cv::waitKey();
     int mode = 0;
     while (key != 27) {
-        std::cerr << key << std::endl;
         if (key == 's') {
             mode += 1;
             if (mode >= 3) mode = 0;
