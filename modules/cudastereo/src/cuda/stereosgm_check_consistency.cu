@@ -44,6 +44,9 @@ namespace cv { namespace cuda { namespace device
             }
         }
 
+        template <typename disp_type, typename image_type>
+        void check_consistency(PtrStep<disp_type> d_left_disp, const PtrStep<disp_type> d_right_disp, const PtrStep<image_type> d_src_left, int width, int height, bool subpixel);
+
         void check_consistency(uint8_t* d_left_disp, const uint8_t* d_right_disp, const void* d_src_left, int width, int height, int depth_bits, int src_pitch, int dst_pitch, bool subpixel) {
 
             const dim3 blocks(width / 16, height / 16);
