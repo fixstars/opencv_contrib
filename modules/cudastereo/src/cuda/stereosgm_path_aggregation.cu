@@ -82,7 +82,8 @@ void pathAggregation(const GpuMat& left, const GpuMat& right, GpuMat& dest, int 
     }
 }
 
-}
-}}}
 template void pathAggregation< 64, 8>(const GpuMat& left, const GpuMat& right, GpuMat& dest, int p1, int p2, Stream& stream);
 template void pathAggregation<128, 8>(const GpuMat& left, const GpuMat& right, GpuMat& dest, int p1, int p2, Stream& stream);
+
+}
+}}}
