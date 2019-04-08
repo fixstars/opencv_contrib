@@ -257,42 +257,64 @@ namespace cv { namespace cuda { namespace device
                     }
                 }
             }
+
+            template <typename T>
+            void median_filter(const PtrStepSz<T> d_src, PtrStep<T> d_dst, Stream& _stream);
+
+            template <>
+            void median_filter<uint8_t>(const PtrStepSz<uint8_t> d_src, PtrStep<uint8_t> d_dst, Stream& _stream) {
+                cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
+
+                if ((d_src.step / sizeof(uint8_t)) % 4 == 0) {
+                    const dim3 block(BLOCK_X, BLOCK_Y);
+                    const dim3 grid(divup(d_src.cols / 4, block.x), divup(d_src.rows, block.y));
+                    median_kernel_3x3_8u_v4<<<grid, block, 0, stream>>>(d_src, d_dst);
+                }
+                else {
+                    const dim3 block(BLOCK_X, BLOCK_Y);
+                    const dim3 grid(divup(d_src.cols, block.x), divup(d_src.rows, block.y));
+                    median_kernel_3x3_8u<<<grid, block, 0, stream>>>(d_src, d_dst);
+                }
+
+                cudaSafeCall( cudaGetLastError() );
+            }
+
+            template <>
+            void median_filter(const PtrStepSz<uint16_t> d_src, PtrStep<uint16_t> d_dst, Stream& _stream) {
+                cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
+
+                if ((d_src.step / sizeof(uint16_t)) % 2 == 0) {
+                    const dim3 block(BLOCK_X, BLOCK_Y);
+                    const dim3 grid(divup(d_src.cols / 2, block.x), divup(d_src.rows, block.y));
+                    median_kernel_3x3_16u_v2<<<grid, block, 0, stream>>>(d_src, d_dst);
+                }
+                else {
+                    const dim3 block(BLOCK_X, BLOCK_Y);
+                    const dim3 grid(divup(d_src.cols, block.x), divup(d_src.rows, block.y));
+                    median_kernel_3x3_16u<<<grid, block, 0, stream>>>(d_src, d_dst);
+                }
+
+                cudaSafeCall( cudaGetLastError() );
+            }
         }
 
-        template <typename T>
-        void median_filter(const PtrStepSz<T> d_src, PtrStep<T> d_dst);
+        void medianFilter(const GpuMat& src, GpuMat& dst, Stream& stream)
+        {
+            CV_Assert(src.size() == dst.size());
+            CV_Assert(src.type() == CV_8UC1 || src.type() == CV_16UC1);
+            CV_Assert(src.type() == dst.type());
 
-        template <>
-        void median_filter<uint8_t>(const PtrStepSz<uint8_t> d_src, PtrStep<uint8_t> d_dst) {
-
-            if ((d_src.step / sizeof(uint8_t)) % 4 == 0) {
-                const dim3 block(BLOCK_X, BLOCK_Y);
-                const dim3 grid(divup(d_src.cols / 4, block.x), divup(d_src.rows, block.y));
-                median_kernel_3x3_8u_v4<<<grid, block>>>(d_src, d_dst);
+            switch (src.type())
+            {
+            case CV_8UC1:
+                median_filter<uint8_t>(src, dst, stream);
+                break;
+            case CV_16UC1:
+                median_filter<uint16_t>(src, dst, stream);
+                break;
+            default:
+                CV_Error(cv::Error::BadDepth, "Unsupported depth");
             }
-            else {
-                const dim3 block(BLOCK_X, BLOCK_Y);
-                const dim3 grid(divup(d_src.cols, block.x), divup(d_src.rows, block.y));
-                median_kernel_3x3_8u<<<grid, block>>>(d_src, d_dst);
-            }
-
-            cudaSafeCall( cudaGetLastError() );
-        }
-
-        void median_filter(const PtrStepSz<uint16_t> d_src, PtrStep<uint16_t> d_dst) {
-
-            if ((d_src.step / sizeof(uint16_t)) % 2 == 0) {
-                const dim3 block(BLOCK_X, BLOCK_Y);
-                const dim3 grid(divup(d_src.cols / 2, block.x), divup(d_src.rows, block.y));
-                median_kernel_3x3_16u_v2<<<grid, block>>>(d_src, d_dst);
-            }
-            else {
-                const dim3 block(BLOCK_X, BLOCK_Y);
-                const dim3 grid(divup(d_src.cols, block.x), divup(d_src.rows, block.y));
-                median_kernel_3x3_16u<<<grid, block>>>(d_src, d_dst);
-            }
-
-            cudaSafeCall( cudaGetLastError() );
         }
 
     }
