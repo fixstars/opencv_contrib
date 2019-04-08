@@ -60,6 +60,8 @@ namespace cv { namespace cuda { namespace device
         void pathAggregation(const GpuMat& left, const GpuMat& right, GpuMat& dest, int p1, int p2, Stream& stream);
         template <size_t MAX_DISPARITY>
         void winnerTakesAll(const GpuMat& src, GpuMat& left, GpuMat& right, float uniqueness, bool subpixel, cv::cuda::Stream& stream);
+        void checkConsistency(GpuMat& left_disp, const GpuMat& right_disp, const GpuMat& src_left, bool subpixel, Stream& stream);
+        void medianFilter(const GpuMat& src, GpuMat& dst, Stream& stream);
     }
 }}}
 
@@ -121,6 +123,7 @@ namespace
         StereoSGMParams params;
         GpuMat censused_left, censused_right;
         GpuMat aggregated;
+        GpuMat left_disp_tmp, right_disp_tmp;
         GpuMat right_disp_dummy;
     };
 
@@ -160,25 +163,27 @@ namespace
         censusTransform(left, censused_left, _stream);
         censusTransform(right, censused_right, _stream);
 
-        GpuMat aggregated;
-        GpuMat disparityRight;
         aggregated.create(Size(size.width * size.height * params.numDisparities * NUM_PATHS, 1), CV_8UC1);
-        disparityRight.create(size, CV_16UC1);
+        left_disp_tmp.create(size, CV_16UC1);
+        right_disp_tmp.create(size, CV_16UC1);
 
         switch (params.numDisparities)
         {
         case 64:
             pathAggregation<64, NUM_PATHS>(censused_left, censused_right, aggregated, params.P1, params.P2, _stream);
-            winnerTakesAll<64>(aggregated, left_disp, right_disp, (float)(100 - params.uniquenessRatio) / 100, true, _stream);
+            winnerTakesAll<64>(aggregated, left_disp_tmp, right_disp_tmp, (float)(100 - params.uniquenessRatio) / 100, true, _stream);
             break;
         case 128:
             pathAggregation<128, NUM_PATHS>(censused_left, censused_right, aggregated, params.P1, params.P2, _stream);
-            winnerTakesAll<128>(aggregated, left_disp, right_disp, (float)(100 - params.uniquenessRatio) / 100, true, _stream);
+            winnerTakesAll<128>(aggregated, left_disp_tmp, right_disp_tmp, (float)(100 - params.uniquenessRatio) / 100, true, _stream);
             break;
         default:
-            // TODO throw CV Exception
-            break;
+            CV_Error(cv::Error::StsBadArg, "Unsupported num of disparities");
         }
+
+        medianFilter(left_disp_tmp, left_disp, _stream);
+        medianFilter(right_disp_tmp, right_disp, _stream);
+        checkConsistency(left_disp, right_disp, left, true, _stream);
     }
 }
 
