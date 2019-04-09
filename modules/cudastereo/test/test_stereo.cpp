@@ -209,6 +209,61 @@ INSTANTIATE_TEST_CASE_P(CUDA_Stereo, ReprojectImageTo3D, testing::Combine(
     testing::Values(MatDepth(CV_8U), MatDepth(CV_16S)),
     WHOLE_SUBMAT));
 
+////////////////////////////////////////////////////////////////////////////////
+// StereoSGM
+
+struct StereoSGM_Test_Params
+{
+    string leftSrcImagePath;
+    string rightSrcImagePath;
+    string leftFixedImagePath;
+    int dispScaleFactor;
+    int dispUnknVal;
+};
+
+PARAM_TEST_CASE(StereoSGM, cv::cuda::DeviceInfo, StereoSGM_Test_Params)
+{
+    cv::cuda::DeviceInfo devInfo;
+    StereoSGM_Test_Params params;
+
+    virtual void SetUp()
+    {
+        devInfo = GET_PARAM(0);
+        params = GET_PARAM(1);
+
+        cv::cuda::setDevice(devInfo.deviceID());
+    }
+};
+
+CUDA_TEST_P(StereoSGM, Regression)
+{
+    // TODO
+}
+
+::std::vector<StereoSGM_Test_Params> generateDatasets4StereoMatching()
+{
+    const string DATASETS_DIR = "cv/stereomatching/datasets/";
+    const string DATASETS_FILE = "datasets.xml";
+    const string LEFT_IMG_NAME = "im2.png";
+    const string RIGHT_IMG_NAME = "im6.png";
+    const string TRUE_LEFT_DISP_NAME = "disp2.png";
+
+    const string dataPath = TS::ptr()->get_data_path() + DATASETS_DIR;
+    FileStorage datasetsFS(dataPath + DATASETS_FILE, FileStorage::READ);
+
+    ::std::vector<StereoSGM_Test_Params> datasets;
+
+    // TODO
+
+    return datasets;
+}
+
+::std::vector<StereoSGM_Test_Params> datasets4StereoMatching = generateDatasets4StereoMatching();
+
+INSTANTIATE_TEST_CASE_P(CUDA_Stereo, StereoSGM, testing::Combine(
+    ALL_DEVICES,
+    ValuesIn(datasets4StereoMatching.begin(), datasets4StereoMatching.end())
+));
 
 }} // namespace
 #endif // HAVE_CUDA
