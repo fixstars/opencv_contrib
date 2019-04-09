@@ -269,21 +269,21 @@ namespace opencv_test { namespace {
         WHOLE_SUBMAT));
 
 
-    static constexpr size_t NUM_PATHS = 8;
+    static constexpr int NUM_PATHS = 8;
 
     void winner_takes_all_left(
         const cv::Mat& src,
         cv::Mat& dst,
-        size_t width, size_t height, size_t disparity,
+        int width, int height, int disparity,
         float uniqueness, bool subpixel)
     {
         dst.create(cv::Size(width, height), CV_16UC1);
-        for (size_t i = 0; i < height; ++i) {
-            for (size_t j = 0; j < width; ++j) {
+        for (int i = 0; i < height; ++i) {
+            for (int j = 0; j < width; ++j) {
                 std::vector<std::pair<int, int>> v;
-                for (size_t k = 0; k < disparity; ++k) {
+                for (int k = 0; k < disparity; ++k) {
                     int cost_sum = 0;
-                    for (size_t p = 0; p < NUM_PATHS; ++p) {
+                    for (int p = 0; p < NUM_PATHS; ++p) {
                         cost_sum += static_cast<int>(src.at<uint8_t>(0,
                             p * disparity * width * height +
                                 i * disparity * width +
@@ -292,36 +292,32 @@ namespace opencv_test { namespace {
                     }
                     v.emplace_back(cost_sum, static_cast<int>(k));
                 }
-                auto w = v;
-                sort(v.begin(), v.end());
-                if (v.size() < 2) {
-                    dst.at<uint16_t>(i, j) = 0;
-                }
-                else
-                {
-                    const int cost0 = v[0].first;
-                    const int cost1 = v[1].first;
-                    const int disp0 = v[0].second;
-                    const int disp1 = v[1].second;
-                    uint16_t disp = 0;
-                    if (cost1 * uniqueness < cost0 && abs(disp0 - disp1) > 1) {
-                        disp = 0;
+                const auto ite = std::min_element(v.begin(), v.end());
+                assert(ite != v.end());
+                const auto best = *ite;
+                const int best_cost = best.first;
+                int best_disp = best.second;
+                int ans = best_disp;
+                if (subpixel) {
+                    ans <<= StereoMatcher::DISP_SHIFT;
+                    if (0 < best_disp && best_disp < static_cast<int>(disparity) - 1) {
+                        const int left = v[best_disp - 1].first;
+                        const int right = v[best_disp + 1].first;
+                        const int numer = left - right;
+                        const int denom = left - 2 * best_cost + right;
+                        ans += ((numer << StereoMatcher::DISP_SHIFT) + denom) / (2 * denom);
                     }
-                    else {
-                        disp = disp0;
-                        if (subpixel) {
-                            disp <<= cv::StereoMatcher::DISP_SHIFT;
-                            if (0 < disp0 && disp0 < static_cast<int>(disparity) - 1) {
-                                const int left = w[disp0 - 1].first;
-                                const int right = w[disp0 + 1].first;
-                                const int numer = left - right;
-                                const int denom = left - 2 * cost0 + right;
-                                disp += ((numer << cv::StereoMatcher::DISP_SHIFT) + denom) / (2 * denom);
-                            }
-                        }
-                    }
-                    dst.at<uint16_t>(i, j) = disp;
                 }
+                for (const auto& p : v) {
+                    const int cost = p.first;
+                    const int disp = p.second;
+                    if (cost * uniqueness < best_cost && abs(disp - best_disp) > 1) {
+                        ans = 0;
+                        break;
+                    }
+                }
+
+                dst.at<uint16_t>(i, j) = static_cast<uint16_t>(ans);
             }
         }
     }
