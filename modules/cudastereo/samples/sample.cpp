@@ -104,7 +104,6 @@ int main(int argc, char* argv[]) {
         }
         key = cv::waitKey();
     }
-    std::system("pause");
 
     return 0;
 }
