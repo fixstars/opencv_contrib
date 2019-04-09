@@ -214,12 +214,19 @@ INSTANTIATE_TEST_CASE_P(CUDA_Stereo, ReprojectImageTo3D, testing::Combine(
 
 struct StereoSGM_Test_Params
 {
-    string leftSrcImagePath;
-    string rightSrcImagePath;
-    string leftFixedImagePath;
+    String leftSrcImagePath;
+    String rightSrcImagePath;
+    String leftFixedImagePath;
     int dispScaleFactor;
     int dispUnknVal;
 };
+
+std::ostream& operator<<(std::ostream& os, const StereoSGM_Test_Params& params)
+{
+    os << "(" << params.leftSrcImagePath << ", " << params.rightSrcImagePath << ") - > " << params.leftFixedImagePath;
+    os << ", scale factor = " << params.dispScaleFactor << ", unknown value = " << params.dispUnknVal;
+    return os;
+}
 
 PARAM_TEST_CASE(StereoSGM, cv::cuda::DeviceInfo, StereoSGM_Test_Params)
 {
@@ -238,22 +245,39 @@ PARAM_TEST_CASE(StereoSGM, cv::cuda::DeviceInfo, StereoSGM_Test_Params)
 CUDA_TEST_P(StereoSGM, Regression)
 {
     // TODO
+    EXPECT_TRUE(params.leftFixedImagePath.length() != 0);
 }
 
 ::std::vector<StereoSGM_Test_Params> generateDatasets4StereoMatching()
 {
-    const string DATASETS_DIR = "cv/stereomatching/datasets/";
+    const string DATASETS_DIR = "stereomatching/datasets/";
     const string DATASETS_FILE = "datasets.xml";
     const string LEFT_IMG_NAME = "im2.png";
     const string RIGHT_IMG_NAME = "im6.png";
     const string TRUE_LEFT_DISP_NAME = "disp2.png";
 
-    const string dataPath = TS::ptr()->get_data_path() + DATASETS_DIR;
+    addDataSearchSubDirectory("cv");
+    const string dataPath = findDataDirectory(DATASETS_DIR);
     FileStorage datasetsFS(dataPath + DATASETS_FILE, FileStorage::READ);
+    assert(datasetsFS.isOpened());
 
     ::std::vector<StereoSGM_Test_Params> datasets;
 
-    // TODO
+    FileNode fn = datasetsFS.getFirstTopLevelNode();
+    assert(fn.isSeq());
+    for (int i = 0; i < (int)fn.size(); i += 3)
+    {
+        String _name = fn[i];
+        String _dispScaleFactor = fn[i + 1];
+        String _dispUnknVal = fn[i + 2];
+        datasets.push_back({
+            dataPath + _name + "/" + LEFT_IMG_NAME,
+            dataPath + _name + "/" + RIGHT_IMG_NAME,
+            dataPath + _name + "/" + TRUE_LEFT_DISP_NAME,
+            atoi(_dispScaleFactor.c_str()),
+            atoi(_dispUnknVal.c_str())
+        });
+    }
 
     return datasets;
 }
