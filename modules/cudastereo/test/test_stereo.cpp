@@ -244,8 +244,35 @@ PARAM_TEST_CASE(StereoSGM, cv::cuda::DeviceInfo, StereoSGM_Test_Params)
 
 CUDA_TEST_P(StereoSGM, Regression)
 {
-    // TODO
-    EXPECT_TRUE(params.leftFixedImagePath.length() != 0);
+    Mat h_leftImage = imread(params.leftSrcImagePath, IMREAD_GRAYSCALE);
+    Mat h_rightImage = imread(params.rightSrcImagePath, IMREAD_GRAYSCALE);
+    Mat trueLeftDisp = imread(params.leftFixedImagePath, IMREAD_GRAYSCALE);
+    assert(!h_leftImage.empty() && !h_rightImage.empty() && !trueLeftDisp.empty());
+
+    Mat tmp;
+    trueLeftDisp.convertTo(tmp, CV_32FC1, 1.f / params.dispScaleFactor);
+    trueLeftDisp = tmp;
+    tmp.release();
+
+    GpuMat d_leftImage, d_rightImage, d_leftDisp;
+    d_leftImage.upload(h_leftImage);
+    d_rightImage.upload(h_rightImage);
+
+    cv::Ptr<cv::cuda::StereoSGM> sgm = cv::cuda::createStereoSGM(64, 10, 120, 5);
+    sgm->compute(d_leftImage, d_rightImage, d_leftDisp);
+
+    Mat h_leftDisp;
+    d_leftDisp.download(h_leftDisp);
+    h_leftDisp.convertTo(tmp, CV_32FC1, 1.f / StereoMatcher::DISP_SCALE);
+    h_leftDisp = tmp;
+    tmp.release();
+
+    Mat unknMask;
+    absdiff(trueLeftDisp, Scalar(params.dispUnknVal), unknMask);
+    unknMask = unknMask < std::numeric_limits<float>::epsilon();
+
+    double allRMS = 1.0 / sqrt(trueLeftDisp.cols * trueLeftDisp.rows) * cvtest::norm(h_leftDisp, trueLeftDisp, NORM_L2, unknMask);
+    EXPECT_LT(allRMS, 5);
 }
 
 ::std::vector<StereoSGM_Test_Params> generateDatasets4StereoMatching()
