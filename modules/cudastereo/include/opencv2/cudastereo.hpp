@@ -244,9 +244,17 @@ CV_EXPORTS_W Ptr<cuda::StereoConstantSpaceBP>
 /////////////////////////////////////////
 // StereoSGM
 
-/** @brief Class computing stereo correspondence (disparity map) using the semi global matching algorithm. :
+/** @brief The class implements the modified H. Hirschmuller algorithm @cite HH08.
+Limitation and difference are as follows:
 
-@sa StereoSGM
+-   Cost Aggregation use 8 paths only.
+-   Only quadratic interpolation is used for subpixel estimation in Disparity Computation.
+-   Disparity Refinement method can select only median filter with \f$3 \times 3\f$ window size.
+-   Mutual Information cost function is not implemented.
+Instead, Center-Symmetric Census Transform with \f$9 \times 7\f$ window size from @cite Spangenberg2013
+is used for robustness.
+
+@sa StereoSGBM
 */
 class CV_EXPORTS_W StereoSGM : public cv::StereoSGBM
 {
@@ -259,7 +267,13 @@ public:
 
 /** @brief Creates StereoSGM object.
 
-@param numDisparities TODO
+@param numDisparities Maximum disparity for search.
+In the current implementation, this parameter must be 64 or 128.
+@param P1 The first parameter controlling the disparity smoothness.This parameter is used for the case of slanted surfaces (not fronto parallel).
+@param P2 The second parameter controlling the disparity smoothness.This parameter is used for "solving" the depth discontinuities problem.
+@param uniquenessRatio Margin in percentage by which the best (minimum) computed cost function
+value should "win" the second best value to consider the found match correct. Normally, a value
+within the 5-15 range is good enough.
 */
 CV_EXPORTS_W Ptr<cuda::StereoSGM> createStereoSGM(int numDisparities = 128, int P1 = 10, int P2 = 120, int uniquenessRatio = 5);
 
