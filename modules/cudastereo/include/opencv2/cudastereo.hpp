@@ -259,7 +259,7 @@ is used for robustness.
 class CV_EXPORTS_W StereoSGM : public cv::StereoSGBM
 {
 public:
-    using cv::StereoMatcher::compute;
+    using cv::StereoSGBM::compute;
 
     CV_WRAP virtual void compute(InputArray left, InputArray right, OutputArray disparity, Stream& stream) = 0;
     CV_WRAP virtual void compute(InputArray left, InputArray right, OutputArray left_disp, OutputArray right_disp, Stream& stream) = 0;
