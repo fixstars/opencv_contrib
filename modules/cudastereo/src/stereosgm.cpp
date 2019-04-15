@@ -76,7 +76,7 @@ namespace
         StereoSGMParams(int numDisparities = 128, int P1 = 10, int P2 = 120, int uniquenessRatio = 5) : numDisparities(numDisparities), P1(P1), P2(P2), uniquenessRatio(uniquenessRatio) {}
     };
 
-    class StereoSGMImpl CV_FINAL: public cuda::StereoSGM
+    class StereoSGMImpl CV_FINAL : public cuda::StereoSGM
     {
         static constexpr unsigned int NUM_PATHS = 8u;
     public:
