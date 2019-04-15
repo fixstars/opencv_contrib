@@ -82,42 +82,42 @@ namespace
     public:
         StereoSGMImpl(int numDisparities, int P1, int P2, int uniquenessRatio);
 
-        virtual void compute(InputArray left, InputArray right, OutputArray disparity) CV_OVERRIDE;
-        virtual void compute(InputArray left, InputArray right, OutputArray disparity, Stream& stream) CV_OVERRIDE;
-        virtual void compute(InputArray left, InputArray right, OutputArray left_disp, OutputArray right_disp, Stream& stream) CV_OVERRIDE;
+        void compute(InputArray left, InputArray right, OutputArray disparity) CV_OVERRIDE;
+        void compute(InputArray left, InputArray right, OutputArray disparity, Stream& stream) CV_OVERRIDE;
+        void compute(InputArray left, InputArray right, OutputArray left_disp, OutputArray right_disp, Stream& stream) CV_OVERRIDE;
 
-        virtual int getBlockSize() const CV_OVERRIDE { return 1; }
-        virtual void setBlockSize(int /*blockSize*/) CV_OVERRIDE {}
+        int getBlockSize() const CV_OVERRIDE { return 1; }
+        void setBlockSize(int /*blockSize*/) CV_OVERRIDE {}
 
-        virtual int getDisp12MaxDiff() const CV_OVERRIDE { return 1; }
-        virtual void setDisp12MaxDiff(int /*disp12MaxDiff*/) CV_OVERRIDE {}
+        int getDisp12MaxDiff() const CV_OVERRIDE { return 1; }
+        void setDisp12MaxDiff(int /*disp12MaxDiff*/) CV_OVERRIDE {}
 
-        virtual int getMinDisparity() const CV_OVERRIDE { return 1; }
-        virtual void setMinDisparity(int /*minDisparity*/) CV_OVERRIDE {}
+        int getMinDisparity() const CV_OVERRIDE { return 1; }
+        void setMinDisparity(int /*minDisparity*/) CV_OVERRIDE {}
 
-        virtual int getNumDisparities() const CV_OVERRIDE { return params.numDisparities; }
-        virtual void setNumDisparities(int numDisparities) CV_OVERRIDE { params.numDisparities = numDisparities; }
+        int getNumDisparities() const CV_OVERRIDE { return params.numDisparities; }
+        void setNumDisparities(int numDisparities) CV_OVERRIDE { params.numDisparities = numDisparities; }
 
-        virtual int getSpeckleWindowSize() const CV_OVERRIDE { return 0; }
-        virtual void setSpeckleWindowSize(int /*speckleWindowSize*/) CV_OVERRIDE {}
+        int getSpeckleWindowSize() const CV_OVERRIDE { return 0; }
+        void setSpeckleWindowSize(int /*speckleWindowSize*/) CV_OVERRIDE {}
 
-        virtual int getSpeckleRange() const CV_OVERRIDE { return 0; }
-        virtual void setSpeckleRange(int /*speckleRange*/) CV_OVERRIDE {}
+        int getSpeckleRange() const CV_OVERRIDE { return 0; }
+        void setSpeckleRange(int /*speckleRange*/) CV_OVERRIDE {}
 
-        virtual int getP1() const CV_OVERRIDE { return params.P1; }
-        virtual void setP1(int P1) CV_OVERRIDE { params.P1 = P1; }
+        int getP1() const CV_OVERRIDE { return params.P1; }
+        void setP1(int P1) CV_OVERRIDE { params.P1 = P1; }
 
-        virtual int getP2() const CV_OVERRIDE { return params.P2; }
-        virtual void setP2(int P2) CV_OVERRIDE { params.P2 = P2; }
+        int getP2() const CV_OVERRIDE { return params.P2; }
+        void setP2(int P2) CV_OVERRIDE { params.P2 = P2; }
 
-        virtual int getUniquenessRatio() const CV_OVERRIDE { return params.uniquenessRatio; }
-        virtual void setUniquenessRatio(int uniquenessRatio) CV_OVERRIDE { params.uniquenessRatio = uniquenessRatio; }
+        int getUniquenessRatio() const CV_OVERRIDE { return params.uniquenessRatio; }
+        void setUniquenessRatio(int uniquenessRatio) CV_OVERRIDE { params.uniquenessRatio = uniquenessRatio; }
 
-        virtual int getMode() const CV_OVERRIDE { return MODE_HH; }
-        virtual void setMode(int /*mode*/) CV_OVERRIDE {}
+        int getMode() const CV_OVERRIDE { return MODE_HH; }
+        void setMode(int /*mode*/) CV_OVERRIDE {}
 
-        virtual int getPreFilterCap() const CV_OVERRIDE { return -1; }
-        virtual void setPreFilterCap(int /*preFilterCap*/) CV_OVERRIDE {}
+        int getPreFilterCap() const CV_OVERRIDE { return -1; }
+        void setPreFilterCap(int /*preFilterCap*/) CV_OVERRIDE {}
 
     private:
         StereoSGMParams params;
