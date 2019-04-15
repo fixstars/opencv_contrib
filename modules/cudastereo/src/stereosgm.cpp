@@ -89,7 +89,7 @@ namespace
         virtual int getBlockSize() const CV_OVERRIDE { return 1; }
         virtual void setBlockSize(int /*blockSize*/) CV_OVERRIDE {}
 
-        virtual int getDisp12MaxDiff() const CV_OVERRIDE { return -1; }
+        virtual int getDisp12MaxDiff() const CV_OVERRIDE { return 1; }
         virtual void setDisp12MaxDiff(int /*disp12MaxDiff*/) CV_OVERRIDE {}
 
         virtual int getMinDisparity() const CV_OVERRIDE { return 1; }
@@ -113,7 +113,7 @@ namespace
         virtual int getUniquenessRatio() const CV_OVERRIDE { return params.uniquenessRatio; }
         virtual void setUniquenessRatio(int uniquenessRatio) CV_OVERRIDE { params.uniquenessRatio = uniquenessRatio; }
 
-        virtual int getMode() const CV_OVERRIDE { return -1; }
+        virtual int getMode() const CV_OVERRIDE { return MODE_HH; }
         virtual void setMode(int /*mode*/) CV_OVERRIDE {}
 
         virtual int getPreFilterCap() const CV_OVERRIDE { return -1; }
