@@ -20,6 +20,8 @@ limitations under the License.
 #include "stereosgm_utility.hpp"
 #include "opencv2/core/cuda_stream_accessor.hpp"
 #include "opencv2/calib3d.hpp"
+#include "opencv2/cudev/warp/reduce.hpp"
+#include "opencv2/cudev/warp/shuffle.hpp"
 
 namespace cv { namespace cuda { namespace device
 {
@@ -32,6 +34,23 @@ static constexpr unsigned int WARP_SIZE = 32u;
 static constexpr unsigned int WARPS_PER_BLOCK = 8u;
 static constexpr unsigned int BLOCK_SIZE = WARPS_PER_BLOCK * WARP_SIZE;
 
+struct OpAnd
+{
+    __device__ __forceinline__ bool operator()(bool x, bool y) const
+    {
+        return x && y;
+    }
+};
+static constexpr OpAnd OP_AND{};
+
+struct OpMin
+{
+    __device__ __forceinline__ uint32_t operator()(uint32_t x, uint32_t y) const
+    {
+        return ::min(x, y);
+    }
+};
+static constexpr OpMin OP_MIN{};
 
 __device__ inline uint32_t pack_cost_index(uint32_t cost, uint32_t index){
     union {
@@ -161,7 +180,12 @@ __global__ void winner_takes_all_kernel(
                 for(unsigned int i = 0; i < REDUCTION_PER_THREAD; ++i){
                     best = ::min(best, local_packed_cost[i]);
                 }
-                best = subgroup_min<WARP_SIZE>(best, 0xffffffffu);
+            #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 300)
+                cv::cudev::warpReduce<uint32_t, OpMin>(nullptr, best, 0, OP_MIN);
+                best = cv::cudev::shfl(best, 0);
+            #else
+                // TODO
+            #endif
                 // Update right
 #pragma unroll
                 for(unsigned int i = 0; i < REDUCTION_PER_THREAD; ++i){
@@ -197,7 +221,7 @@ __global__ void winner_takes_all_kernel(
                     const bool uniq2 = ::abs(unpack_index(x) - bestDisp) <= 1;
                     uniq &= uniq1 || uniq2;
                 }
-                uniq = subgroup_and<WARP_SIZE>(uniq, 0xffffffffu);
+                cv::cudev::warpReduce<bool, OpAnd>(nullptr, uniq, 0, OP_AND);
                 if(lane_id == 0){
                     left_dest(0, x) = uniq ? compute_disparity(bestDisp, bestCost, smem_cost_sum[warp_id][smem_x]) : 0;
                 }
