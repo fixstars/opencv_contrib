@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Author: The "SGM Team" at Fixstars Corporation
+// Author: The "adaskit Team" at Fixstars Corporation
 
 #include "test_precomp.hpp"
 
